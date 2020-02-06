@@ -4,9 +4,6 @@
 *.so
 # executables
 
-hraftd
-**/hraftd
-
 # Folders
 _obj
 _test
