@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	"github.com/bingoohuang/gonet"
 	"github.com/bingoohuang/hraftd/httpd"
@@ -139,14 +140,31 @@ func parseFlagRaftDir(app *Arg) {
 
 func join(joinAddr, raftAddr, nodeID string) error {
 	b, _ := json.Marshal(httpd.JoinRequest{RemoteAddr: raftAddr, NodeID: nodeID})
-	resp, err := http.Post(fmt.Sprintf("http://%s/join", joinAddr),
-		"application-type/json", bytes.NewReader(b))
+	joinURL := fmt.Sprintf("http://%s/join", joinAddr)
 
-	if err != nil {
-		return err
+	for i := 0; i < 10; i++ {
+		if i > 0 {
+			time.Sleep(10 * time.Second) // nolint gomnd
+		}
+
+		resp, err := http.Post(joinURL, "application-type/json", bytes.NewReader(b)) // nolint gosec
+		if err != nil {
+			log.Printf("joined error %v, retry after 10s\n", err)
+
+			continue
+		}
+
+		var r httpd.JoinResponse
+
+		rs := gonet.ReadString(resp.Body)
+		resp.Body.Close()
+		log.Printf("json response %s\n", rs)
+		_ = json.Unmarshal([]byte(rs), &r)
+
+		if r.OK {
+			return nil
+		}
 	}
 
-	log.Printf("json response %s\n", gonet.ReadString(resp.Body))
-
-	return resp.Body.Close()
+	return fmt.Errorf("failed to join %s", joinURL)
 }

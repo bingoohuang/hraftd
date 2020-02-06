@@ -86,17 +86,24 @@ type JoinRequest struct {
 	NodeID     string `json:"id"`
 }
 
+type JoinResponse struct {
+	OK  bool   `json:"ok"`
+	Msg string `json:"msg"`
+}
+
 func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) {
 	var m JoinRequest
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		util.WriteAsJSON(JoinResponse{OK: false, Msg: err.Error()}, w)
 		return
 	}
 
 	if err := s.store.Join(m.NodeID, m.RemoteAddr); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		util.WriteAsJSON(JoinResponse{OK: false, Msg: err.Error()}, w)
 		return
 	}
+
+	util.WriteAsJSON(JoinResponse{OK: true, Msg: "OK"}, w)
 }
 
 func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {

@@ -183,6 +183,7 @@ func (s *Store) Join(nodeID, addr string) error {
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
 		s.logger.Printf("failed to get raft configuration: %v", err)
+
 		return err
 	}
 
