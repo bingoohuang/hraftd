@@ -161,32 +161,16 @@ output:
 
 ```json
 {
-  "isLeader": false,
-  "leader": {
-    "address": ":12001",
-    "nodeID": "192.168.10.101:12001"
-  },
-  "peers": [
-    {
-      "address": ":12000",
-      "nodeID": "192.168.10.101:12000"
-    },
-    {
-      "address": ":12002",
-      "nodeID": "192.168.10.101:12002"
-    }
-  ]
-}
-```
-
-```json
-{
   "isLeader": true,
-  "leader": {
-    "address": ":12001",
-    "nodeID": "192.168.10.101:12001"
+  "current": {
+    "address": ":12000",
+    "nodeID": "192.168.10.101:12000"
   },
-  "peers": [
+  "leader": {
+    "address": ":12000",
+    "nodeID": "192.168.10.101:12000"
+  },
+  "servers": [
     {
       "address": ":12000",
       "nodeID": "192.168.10.101:12000"
@@ -194,6 +178,10 @@ output:
     {
       "address": ":12002",
       "nodeID": "192.168.10.101:12002"
+    },
+    {
+      "address": ":12001",
+      "nodeID": "192.168.10.101:12001"
     }
   ]
 }
@@ -202,11 +190,15 @@ output:
 ```json
 {
   "isLeader": false,
-  "leader": {
+  "current": {
     "address": ":12001",
     "nodeID": "192.168.10.101:12001"
   },
-  "peers": [
+  "leader": {
+    "address": ":12000",
+    "nodeID": "192.168.10.101:12000"
+  },
+  "servers": [
     {
       "address": ":12000",
       "nodeID": "192.168.10.101:12000"
@@ -214,6 +206,38 @@ output:
     {
       "address": ":12002",
       "nodeID": "192.168.10.101:12002"
+    },
+    {
+      "address": ":12001",
+      "nodeID": "192.168.10.101:12001"
+    }
+  ]
+}
+```
+
+```json
+{
+  "isLeader": false,
+  "current": {
+    "address": ":12002",
+    "nodeID": "192.168.10.101:12002"
+  },
+  "leader": {
+    "address": ":12000",
+    "nodeID": "192.168.10.101:12000"
+  },
+  "servers": [
+    {
+      "address": ":12000",
+      "nodeID": "192.168.10.101:12000"
+    },
+    {
+      "address": ":12002",
+      "nodeID": "192.168.10.101:12002"
+    },
+    {
+      "address": ":12001",
+      "nodeID": "192.168.10.101:12001"
     }
   ]
 }

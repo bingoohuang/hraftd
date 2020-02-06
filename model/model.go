@@ -9,8 +9,9 @@ type Peer struct {
 // LeaderState is state of leader
 type LeaderState struct {
 	IsLeader bool   `json:"isLeader"`
+	Current  Peer   `json:"current"`
 	Leader   Peer   `json:"leader"`
-	Peers    []Peer `json:"peers"`
+	Servers  []Peer `json:"servers"`
 }
 
 // Store is the interface Raft-backed key-value stores must implement.

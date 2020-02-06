@@ -50,6 +50,7 @@ type Store struct {
 	raft *raft.Raft // The consensus mechanism
 
 	logger *log.Logger
+	nodeID string
 }
 
 // New returns a new Store.
@@ -80,7 +81,7 @@ func (s *Store) Leader() model.LeaderState {
 	leader := s.raft.Leader()
 	ls := model.LeaderState{
 		IsLeader: s.raft.State() == raft.Leader,
-		Peers:    make([]model.Peer, 0),
+		Servers:  make([]model.Peer, 0),
 	}
 
 	_ = s.iterateRaftServers(func(srv raft.Server) error {
@@ -91,9 +92,13 @@ func (s *Store) Leader() model.LeaderState {
 
 		if leader == srv.Address {
 			ls.Leader = peer
-		} else {
-			ls.Peers = append(ls.Peers, peer)
 		}
+
+		if s.nodeID == peer.NodeID {
+			ls.Current = peer
+		}
+
+		ls.Servers = append(ls.Servers, peer)
 
 		return nil
 	})
@@ -105,6 +110,8 @@ func (s *Store) Leader() model.LeaderState {
 // then this node becomes the first node, and therefore leader, of the cluster.
 // localID should be the server identifier for this node.
 func (s *Store) Open(enableSingle bool, localID string) error {
+	s.nodeID = localID
+
 	// Setup Raft configuration.
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(localID)
