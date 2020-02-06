@@ -84,12 +84,7 @@ $ curl localhost:11000/key/user2 localhost:11001/key/user2 localhost:11002/key/u
 ```
 
 ```bash
-$ curl localhost:11000/raft/stats localhost:11001/raft/stats localhost:11002/raft/stats |jq
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   532  100   532    0     0   519k      0 --:--:-- --:--:-- --:--:--  519k
-100   544  100   544    0     0   531k      0 --:--:-- --:--:-- --:--:--  531k
-100   544  100   544    0     0   531k      0 --:--:-- --:--:-- --:--:--  531k
+curl localhost:11000/raft/stats localhost:11001/raft/stats localhost:11002/raft/stats |jq
 ```
 
 output:
@@ -157,6 +152,70 @@ output:
   "snapshot_version_min": "0",
   "state": "Follower",
   "term": "13"
+}
+```
+
+`curl localhost:11000/raft/leader localhost:11001/raft/leader localhost:11002/raft/leader | jq`
+
+output:
+
+```json
+{
+  "isLeader": false,
+  "leader": {
+    "address": ":12001",
+    "nodeID": "192.168.10.101:12001"
+  },
+  "peers": [
+    {
+      "address": ":12000",
+      "nodeID": "192.168.10.101:12000"
+    },
+    {
+      "address": ":12002",
+      "nodeID": "192.168.10.101:12002"
+    }
+  ]
+}
+```
+
+```json
+{
+  "isLeader": true,
+  "leader": {
+    "address": ":12001",
+    "nodeID": "192.168.10.101:12001"
+  },
+  "peers": [
+    {
+      "address": ":12000",
+      "nodeID": "192.168.10.101:12000"
+    },
+    {
+      "address": ":12002",
+      "nodeID": "192.168.10.101:12002"
+    }
+  ]
+}
+```
+
+```json
+{
+  "isLeader": false,
+  "leader": {
+    "address": ":12001",
+    "nodeID": "192.168.10.101:12001"
+  },
+  "peers": [
+    {
+      "address": ":12000",
+      "nodeID": "192.168.10.101:12000"
+    },
+    {
+      "address": ":12002",
+      "nodeID": "192.168.10.101:12002"
+    }
+  ]
 }
 ```
 

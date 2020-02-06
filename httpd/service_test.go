@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/bingoohuang/hraftd/model"
 )
 
 // Test_NewServer tests that a server can perform all basic operations.
@@ -64,6 +66,9 @@ type testStore struct {
 func newTestStore() *testStore { return &testStore{m: make(map[string]string)} }
 
 func (t *testStore) RaftStats() map[string]string { return map[string]string{} }
+
+func (t *testStore) Leader() model.LeaderState { return model.LeaderState{} }
+func (t *testStore) LeaderCh() <-chan bool     { return nil }
 
 func (t *testStore) Get(key string) (string, bool, error) { return t.m[key], true, nil }
 

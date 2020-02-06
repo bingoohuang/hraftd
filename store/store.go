@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bingoohuang/hraftd/model"
+
 	"github.com/bingoohuang/hraftd/util"
 
 	"github.com/hashicorp/raft"
@@ -64,6 +66,40 @@ func New(raftDir, raftAddr string, inMemory bool) *Store {
 
 // RaftStats returns raft stats.
 func (s *Store) RaftStats() map[string]string { return s.raft.Stats() }
+
+// LeaderCh is used to get a channel which delivers signals on
+// acquiring or losing leadership. It sends true if we become
+// the leader, and false if we lose it. The channel is not buffered,
+// and does not block on writes.
+func (s *Store) LeaderCh() <-chan bool {
+	return s.raft.LeaderCh()
+}
+
+// Leader returns the leader state
+func (s *Store) Leader() model.LeaderState {
+	leader := s.raft.Leader()
+	ls := model.LeaderState{
+		IsLeader: s.raft.State() == raft.Leader,
+		Peers:    make([]model.Peer, 0),
+	}
+
+	_ = s.iterateRaftServers(func(srv raft.Server) error {
+		peer := model.Peer{
+			Address: string(srv.Address),
+			NodeID:  string(srv.ID),
+		}
+
+		if leader == srv.Address {
+			ls.Leader = peer
+		} else {
+			ls.Peers = append(ls.Peers, peer)
+		}
+
+		return nil
+	})
+
+	return ls
+}
 
 // Open opens the store. If enableSingle is set, and there are no existing peers,
 // then this node becomes the first node, and therefore leader, of the cluster.
@@ -175,11 +211,7 @@ func (s *Store) Delete(key string) error {
 	return f.Error()
 }
 
-// Join joins a node, identified by nodeID and located at addr, to this store.
-// The node must be ready to respond to Raft communications at that address.
-func (s *Store) Join(nodeID, addr string) error {
-	s.logger.Printf("received join request for remote node %s at %s", nodeID, addr)
-
+func (s *Store) iterateRaftServers(f func(srv raft.Server) error) error {
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
 		s.logger.Printf("failed to get raft configuration: %v", err)
@@ -187,10 +219,24 @@ func (s *Store) Join(nodeID, addr string) error {
 		return err
 	}
 
+	for _, srv := range configFuture.Configuration().Servers {
+		if err := f(srv); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Join joins a node, identified by nodeID and located at addr, to this store.
+// The node must be ready to respond to Raft communications at that address.
+func (s *Store) Join(nodeID, addr string) error {
+	s.logger.Printf("received join request for remote node %s at %s", nodeID, addr)
+
 	serverID := raft.ServerID(nodeID)
 	serverAddress := raft.ServerAddress(addr)
 
-	for _, srv := range configFuture.Configuration().Servers {
+	err := s.iterateRaftServers(func(srv raft.Server) error {
 		// If a node already exists with either the joining node's ID or address,
 		// that node may need to be removed from the config first.
 		idEquals := srv.ID == serverID
@@ -209,10 +255,16 @@ func (s *Store) Join(nodeID, addr string) error {
 				return fmt.Errorf("error removing existing node %s at %s: %s", nodeID, addr, err)
 			}
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
 	f := s.raft.AddVoter(serverID, serverAddress, 0, 0)
-	err := f.Error()
+	err = f.Error()
 
 	if err != nil {
 		s.logger.Printf("node %s at %s joined error %v", nodeID, addr, err)

@@ -9,37 +9,21 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/bingoohuang/hraftd/model"
+
 	"github.com/bingoohuang/hraftd/util"
 )
-
-// Store is the interface Raft-backed key-value stores must implement.
-type Store interface {
-	// Get returns the value for the given key.
-	Get(key string) (string, bool, error)
-
-	// Set sets the value for the given key, via distributed consensus.
-	Set(key, value string) error
-
-	// Delete removes the given key, via distributed consensus.
-	Delete(key string) error
-
-	// Join joins the node, identified by nodeID and reachable at addr, to the cluster.
-	Join(nodeID string, addr string) error
-
-	// RaftStats returns the raft stats
-	RaftStats() map[string]string
-}
 
 // Service provides HTTP service.
 type Service struct {
 	addr string
 	ln   net.Listener
 
-	store Store
+	store model.Store
 }
 
 // New returns an uninitialized HTTP service.
-func New(addr string, store Store) *Service { return &Service{addr: addr, store: store} }
+func New(addr string, store model.Store) *Service { return &Service{addr: addr, store: store} }
 
 // Start starts the service.
 func (s *Service) Start() error {
@@ -68,13 +52,17 @@ func (s *Service) Close() error { return s.ln.Close() }
 
 // ServeHTTP allows Service to serve HTTP requests.
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
 	switch {
-	case strings.HasPrefix(r.URL.Path, "/key"):
+	case strings.HasPrefix(path, "/key"):
 		s.handleKeyRequest(w, r)
-	case r.URL.Path == "/join":
-		s.handleJoin(w, r)
-	case r.URL.Path == "/raft/stats":
-		s.handleRaftStats(w, r)
+	case path == "/join":
+		CheckMethod("POST", s.handleJoin, w, r)
+	case path == "/raft/stats":
+		CheckMethod("GET", s.handleRaftStats, w, r)
+	case path == "/raft/leader":
+		CheckMethod("GET", s.handleRaftLeader, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -175,12 +163,20 @@ func (s *Service) doGet(k string, w http.ResponseWriter) {
 // Addr returns the address on which the Service is listening
 func (s *Service) Addr() net.Addr { return s.ln.Addr() }
 
-func (s *Service) handleRaftStats(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+func CheckMethod(m string, f func(w http.ResponseWriter, r *http.Request), w http.ResponseWriter, r *http.Request) {
+	if r.Method != m {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 
 		return
 	}
 
+	f(w, r)
+}
+
+func (s *Service) handleRaftStats(w http.ResponseWriter, _ *http.Request) {
 	util.WriteAsJSON(s.store.RaftStats(), w)
+}
+
+func (s *Service) handleRaftLeader(w http.ResponseWriter, r *http.Request) {
+	util.WriteAsJSON(s.store.Leader(), w)
 }
