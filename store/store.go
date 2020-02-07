@@ -46,8 +46,7 @@ type Store struct {
 	raft *raft.Raft // The consensus mechanism
 
 	logger *log.Logger
-
-	Arg *model.Arg
+	Arg    *model.Arg
 }
 
 // New returns a new Store.
@@ -133,7 +132,7 @@ func (s *Store) Open() error {
 	}
 
 	// Instantiate the Raft systems.
-	raft, err := raft.NewRaft(config, (*fsm)(s), logStore, stableStore, snapshots, transport)
+	raft, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, transport)
 	if err != nil {
 		return fmt.Errorf("new raft: %s", err)
 	}
@@ -174,13 +173,13 @@ func bootstrapCluster(c *raft.Config, t *raft.NetworkTransport, ra *raft.Raft) {
 }
 
 // Get returns the value for the given key.
-func (s *Store) Get(key string) (string, bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *Store) Get(key string) (v string, ok bool, err error) {
+	s.lockApplyOp(func() interface{} {
+		v, ok = s.m[key]
+		return nil
+	})
 
-	v, ok := s.m[key]
-
-	return v, ok, nil
+	return
 }
 
 var (
@@ -276,10 +275,8 @@ func (s *Store) Join(nodeID, addr string) error {
 	return nil
 }
 
-type fsm Store
-
 // Apply applies a Raft log entry to the key-value store.
-func (f *fsm) Apply(l *raft.Log) interface{} {
+func (s *Store) Apply(l *raft.Log) interface{} {
 	var c command
 	if err := json.Unmarshal(l.Data, &c); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
@@ -287,38 +284,36 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 
 	switch c.Op {
 	case "set":
-		return f.lockApplyOp(func() interface{} { f.m[c.Key] = c.Value; return nil })
+		return s.lockApplyOp(func() interface{} { s.m[c.Key] = c.Value; return nil })
 	case "delete":
-		return f.lockApplyOp(func() interface{} { delete(f.m, c.Key); return nil })
+		return s.lockApplyOp(func() interface{} { delete(s.m, c.Key); return nil })
 	default:
 		panic(fmt.Sprintf("unrecognized command op: %s", c.Op))
 	}
 }
 
 // Snapshot returns a snapshot of the key-value store.
-func (f *fsm) Snapshot() (raft.FSMSnapshot, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	return &fsmSnapshot{store: util.CloneMap(f.m)}, nil
+func (s *Store) Snapshot() (raft.FSMSnapshot, error) {
+	fn := func() interface{} { return &fsmSnapshot{store: util.CloneMap(s.m)} }
+	return s.lockApplyOp(fn).(raft.FSMSnapshot), nil
 }
 
 // Restore stores the key-value store to a previous state.
-func (f *fsm) Restore(rc io.ReadCloser) error {
+func (s *Store) Restore(rc io.ReadCloser) error {
 	o := make(map[string]string)
 	if err := json.NewDecoder(rc).Decode(&o); err != nil {
 		return err
 	}
 
 	// Set the state from the snapshot, no lock required according to Hashicorp docs.
-	f.m = o
+	s.m = o
 
 	return nil
 }
 
-func (f *fsm) lockApplyOp(fn func() interface{}) interface{} {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+func (s *Store) lockApplyOp(fn func() interface{}) interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	return fn()
 }
