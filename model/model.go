@@ -1,5 +1,7 @@
 package model
 
+import "github.com/hashicorp/raft"
+
 // Peer defines the peers information
 type Peer struct {
 	Address string `json:"address"`
@@ -64,4 +66,7 @@ type Command struct {
 	Op    string `json:"op,omitempty"`
 	Key   string `json:"key,omitempty"`
 	Value string `json:"value,omitempty"`
+	Time  string `json:"time"`
 }
+
+type ApplyInterceptor func(l *raft.Log, cmd Command) bool

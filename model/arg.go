@@ -18,6 +18,8 @@ type Arg struct {
 	NodeID   string
 	HTTPAddr string
 	JoinAddr string
+
+	ApplyInterceptor ApplyInterceptor `json:"-"`
 }
 
 // DefineFlags define raft args

@@ -174,7 +174,8 @@ func (s *Store) Set(key, value string) error {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&model.Command{Op: "set", Key: key, Value: value})
+	b, _ := json.Marshal(&model.Command{Op: "set", Key: key, Value: value,
+		Time: time.Now().Format("2006-01-02 15:04:05.000")})
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
@@ -186,7 +187,8 @@ func (s *Store) Delete(key string) error {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&model.Command{Op: "delete", Key: key})
+	b, _ := json.Marshal(&model.Command{Op: "delete", Key: key,
+		Time: time.Now().Format("2006-01-02 15:04:05.000")})
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
@@ -237,14 +239,25 @@ func (s *Store) Apply(l *raft.Log) interface{} {
 		panic(fmt.Sprintf("failed to unmarshal Command: %s", err.Error()))
 	}
 
+	intercepted := false
+	if s.Arg.ApplyInterceptor != nil {
+		intercepted = s.Arg.ApplyInterceptor(l, c)
+	}
+
+	if intercepted {
+		return nil
+	}
+
 	switch c.Op {
 	case "set":
 		return s.lockApplyOp(func() interface{} { s.m[c.Key] = c.Value; return nil })
 	case "delete":
 		return s.lockApplyOp(func() interface{} { delete(s.m, c.Key); return nil })
 	default:
-		panic(fmt.Sprintf("unrecognized Command op: %s", c.Op))
+		s.logger.Printf("unrecognized Command op: %+v", c)
 	}
+
+	return nil
 }
 
 // Snapshot returns a snapshot of the key-value store.

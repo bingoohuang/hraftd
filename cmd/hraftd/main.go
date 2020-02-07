@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
+
+	"github.com/hashicorp/raft"
 
 	"github.com/bingoohuang/hraftd/model"
 
@@ -19,6 +22,12 @@ func main() {
 
 	argJSON, _ := json.Marshal(arg)
 	log.Printf("Args:%s\n", argJSON)
+
+	arg.ApplyInterceptor = func(l *raft.Log, cmd model.Command) bool {
+		fmt.Printf("received command %+v\n", cmd)
+
+		return false
+	}
 
 	h := httpd.Create(arg)
 
