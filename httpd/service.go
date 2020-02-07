@@ -1,13 +1,19 @@
 // Package httpd provides the HTTP server for accessing the distributed key-value store.
-// It also provides the endpoint for other nodes to join an existing cluster.
+// It also provides the endpoint for other nodes to Join an existing cluster.
 package httpd
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/bingoohuang/gonet"
+	"github.com/bingoohuang/hraftd/store"
 
 	"github.com/bingoohuang/hraftd/model"
 
@@ -16,20 +22,29 @@ import (
 
 // Service provides HTTP service.
 type Service struct {
-	addr string
-	ln   net.Listener
-
 	store model.Store
+
+	ln net.Listener
+
+	Arg *model.Arg
 }
 
-// New returns an uninitialized HTTP service.
-func New(addr string, store model.Store) *Service { return &Service{addr: addr, store: store} }
+// Create returns an uninitialized HTTP service.
+func Create(arg *model.Arg) *Service {
+	s := store.New(arg)
+
+	if err := s.Open(); err != nil {
+		log.Fatalf("failed to open store: %s", err.Error())
+	}
+
+	return &Service{Arg: arg, store: s}
+}
 
 // Start starts the service.
 func (s *Service) Start() error {
 	server := http.Server{Handler: s}
 
-	ln, err := net.Listen("tcp", s.addr)
+	ln, err := net.Listen("tcp", s.Arg.HTTPAddr)
 	if err != nil {
 		return err
 	}
@@ -44,7 +59,48 @@ func (s *Service) Start() error {
 		}
 	}()
 
+	// If Join was specified, make the Join request.
+	if !s.Arg.Bootstrap {
+		return nil
+	}
+
+	if err := Join(s.Arg.JoinAddr, s.Arg.RaftAddr, s.Arg.NodeID); err != nil {
+		log.Fatalf("failed to Join node at %s: %s", s.Arg.JoinAddr, err.Error())
+	}
+
 	return nil
+}
+
+// Join joins the current not to raft cluster
+func Join(joinAddr, raftAddr, nodeID string) error {
+	b, _ := json.Marshal(model.JoinRequest{RemoteAddr: raftAddr, NodeID: nodeID})
+	joinURL := fmt.Sprintf("http://%s/Join", joinAddr)
+
+	for i := 0; i < 10; i++ {
+		if i > 0 {
+			time.Sleep(10 * time.Second) // nolint gomnd
+		}
+
+		resp, err := http.Post(joinURL, model.ContentTypeJSON, bytes.NewReader(b)) // nolint gosec
+		if err != nil {
+			log.Printf("joined error %v, retry after 10s\n", err)
+
+			continue
+		}
+
+		var r model.JoinResponse
+
+		rs := gonet.ReadString(resp.Body)
+		resp.Body.Close()
+		log.Printf("json response %s\n", rs)
+		_ = json.Unmarshal([]byte(rs), &r)
+
+		if r.OK {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to Join %s", joinURL)
 }
 
 // Close closes the service.
@@ -57,41 +113,34 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.HasPrefix(path, "/key"):
 		s.handleKeyRequest(w, r)
-	case path == "/join":
+	case path == "/Join":
 		CheckMethod("POST", s.handleJoin, w, r)
 	case path == "/raft/stats":
-		CheckMethod("GET", s.handleRaftStats, w, r)
+		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
+			util.WriteAsJSON(s.store.RaftStats(), w)
+		}, w, r)
 	case path == "/raft/leader":
-		CheckMethod("GET", s.handleRaftLeader, w, r)
+		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
+			util.WriteAsJSON(s.store.Status(), w)
+		}, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
-// JoinRequest defines the Raft join request
-type JoinRequest struct {
-	RemoteAddr string `json:"addr"`
-	NodeID     string `json:"id"`
-}
-
-type JoinResponse struct {
-	OK  bool   `json:"ok"`
-	Msg string `json:"msg"`
-}
-
 func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) {
-	var m JoinRequest
+	var m model.JoinRequest
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		util.WriteAsJSON(JoinResponse{OK: false, Msg: err.Error()}, w)
+		util.WriteAsJSON(model.JoinResponse{OK: false, Msg: err.Error()}, w)
 		return
 	}
 
 	if err := s.store.Join(m.NodeID, m.RemoteAddr); err != nil {
-		util.WriteAsJSON(JoinResponse{OK: false, Msg: err.Error()}, w)
+		util.WriteAsJSON(model.JoinResponse{OK: false, Msg: err.Error()}, w)
 		return
 	}
 
-	util.WriteAsJSON(JoinResponse{OK: true, Msg: "OK"}, w)
+	util.WriteAsJSON(model.JoinResponse{OK: true, Msg: "OK"}, w)
 }
 
 func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
@@ -171,12 +220,4 @@ func CheckMethod(m string, f func(w http.ResponseWriter, r *http.Request), w htt
 	}
 
 	f(w, r)
-}
-
-func (s *Service) handleRaftStats(w http.ResponseWriter, _ *http.Request) {
-	util.WriteAsJSON(s.store.RaftStats(), w)
-}
-
-func (s *Service) handleRaftLeader(w http.ResponseWriter, r *http.Request) {
-	util.WriteAsJSON(s.store.Leader(), w)
 }

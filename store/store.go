@@ -40,8 +40,6 @@ type command struct {
 
 // Store is a simple key-value store, where all changes are made via Raft consensus.
 type Store struct {
-	RaftDir  string
-	RaftBind string
 	inMemory bool
 
 	mu sync.Mutex
@@ -50,18 +48,18 @@ type Store struct {
 	raft *raft.Raft // The consensus mechanism
 
 	logger *log.Logger
-	nodeID string
+
+	Arg *model.Arg
 }
 
 // New returns a new Store.
-func New(raftDir, raftAddr string, inMemory bool) *Store {
+func New(arg *model.Arg) *Store {
 	return &Store{
 		m:        make(map[string]string),
-		inMemory: inMemory,
+		inMemory: arg.InMem,
 		logger:   log.New(os.Stderr, "[store] ", log.LstdFlags),
 
-		RaftDir:  raftDir,
-		RaftBind: raftAddr,
+		Arg: arg,
 	}
 }
 
@@ -72,16 +70,13 @@ func (s *Store) RaftStats() map[string]string { return s.raft.Stats() }
 // acquiring or losing leadership. It sends true if we become
 // the leader, and false if we lose it. The channel is not buffered,
 // and does not block on writes.
-func (s *Store) LeaderCh() <-chan bool {
-	return s.raft.LeaderCh()
-}
+func (s *Store) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 
-// Leader returns the leader state
-func (s *Store) Leader() model.LeaderState {
+// Status returns the raft cluster state
+func (s *Store) Status() model.RaftClusterState {
 	leader := s.raft.Leader()
-	ls := model.LeaderState{
-		IsLeader: s.raft.State() == raft.Leader,
-		Servers:  make([]model.Peer, 0),
+	clusterState := model.RaftClusterState{
+		Servers: make([]model.Peer, 0),
 	}
 
 	_ = s.iterateRaftServers(func(srv raft.Server) error {
@@ -91,46 +86,46 @@ func (s *Store) Leader() model.LeaderState {
 		}
 
 		if leader == srv.Address {
-			ls.Leader = peer
+			peer.State = raft.Leader.String()
+			clusterState.Leader = peer
 		}
 
-		if s.nodeID == peer.NodeID {
-			ls.Current = peer
+		if s.Arg.NodeID == peer.NodeID {
+			peer.State = s.raft.State().String()
+			clusterState.Current = peer
 		}
 
-		ls.Servers = append(ls.Servers, peer)
+		clusterState.Servers = append(clusterState.Servers, peer)
 
 		return nil
 	})
 
-	return ls
+	return clusterState
 }
 
 // Open opens the store. If enableSingle is set, and there are no existing peers,
 // then this node becomes the first node, and therefore leader, of the cluster.
 // localID should be the server identifier for this node.
-func (s *Store) Open(enableSingle bool, localID string) error {
-	s.nodeID = localID
-
+func (s *Store) Open() error {
 	// Setup Raft configuration.
 	config := raft.DefaultConfig()
-	config.LocalID = raft.ServerID(localID)
+	config.LocalID = raft.ServerID(s.Arg.NodeID)
 
 	// Setup Raft communication.
-	addr, err := net.ResolveTCPAddr("tcp", s.RaftBind)
+	addr, err := net.ResolveTCPAddr("tcp", s.Arg.RaftAddr)
 	if err != nil {
 		return err
 	}
 
 	// nolint gomnd
-	transport, err := raft.NewTCPTransport(s.RaftBind, addr, 3, 10*time.Second, os.Stderr)
+	transport, err := raft.NewTCPTransport(s.Arg.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
 
 	if err != nil {
 		return err
 	}
 
 	// Create the snapshot store. This allows the Raft to truncate the log.
-	snapshots, err := raft.NewFileSnapshotStore(s.RaftDir, retainSnapshotCount, os.Stderr)
+	snapshots, err := raft.NewFileSnapshotStore(s.Arg.RaftDir, retainSnapshotCount, os.Stderr)
 	if err != nil {
 		return fmt.Errorf("file snapshot store: %s", err)
 	}
@@ -144,7 +139,7 @@ func (s *Store) Open(enableSingle bool, localID string) error {
 		logStore = raft.NewInmemStore()
 		stableStore = raft.NewInmemStore()
 	} else {
-		boltDB, err := raftboltdb.NewBoltStore(filepath.Join(s.RaftDir, "raft.db"))
+		boltDB, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftDir, "raft.db"))
 		if err != nil {
 			return fmt.Errorf("new bolt store: %s", err)
 		}
@@ -161,7 +156,7 @@ func (s *Store) Open(enableSingle bool, localID string) error {
 
 	s.raft = ra
 
-	if enableSingle {
+	if s.Arg.Bootstrap {
 		bootstrapCluster(config, transport, ra)
 	}
 
@@ -294,9 +289,9 @@ func (f *fsm) Apply(l *raft.Log) interface{} {
 
 	switch c.Op {
 	case "set":
-		return f.applySet(c.Key, c.Value)
+		return f.lockApplyOp(func() interface{} { f.m[c.Key] = c.Value; return nil })
 	case "delete":
-		return f.applyDelete(c.Key)
+		return f.lockApplyOp(func() interface{} { delete(f.m, c.Key); return nil })
 	default:
 		panic(fmt.Sprintf("unrecognized command op: %s", c.Op))
 	}
@@ -323,22 +318,11 @@ func (f *fsm) Restore(rc io.ReadCloser) error {
 	return nil
 }
 
-func (f *fsm) applySet(key, value string) interface{} {
+func (f *fsm) lockApplyOp(fn func() interface{}) interface{} {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.m[key] = value
-
-	return nil
-}
-
-func (f *fsm) applyDelete(key string) interface{} {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	delete(f.m, key)
-
-	return nil
+	return fn()
 }
 
 type fsmSnapshot struct {

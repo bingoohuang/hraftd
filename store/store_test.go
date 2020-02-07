@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bingoohuang/hraftd/model"
 )
 
 // Test_StoreOpen tests that the store can be opened.
@@ -13,9 +15,17 @@ func Test_StoreOpen(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// nolint goconst
-	s := New(tmpDir, "127.0.0.1:0", false)
+	s := New(&model.Arg{
+		InMem:     false,
+		RaftAddr:  "127.0.0.1:0",
+		RaftDir:   tmpDir,
+		NodeID:    "node0",
+		HTTPAddr:  "",
+		JoinAddr:  "",
+		Bootstrap: false,
+	})
 
-	if err := s.Open(false, "node0"); err != nil {
+	if err := s.Open(); err != nil {
 		t.Fatalf("failed to open store: %s", err)
 	}
 }
@@ -26,9 +36,17 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
-	s := New(tmpDir, "127.0.0.1:0", false)
+	s := New(&model.Arg{
+		InMem:     false,
+		RaftAddr:  "127.0.0.1:0",
+		RaftDir:   tmpDir,
+		NodeID:    "node0",
+		HTTPAddr:  "",
+		JoinAddr:  "",
+		Bootstrap: true,
+	})
 
-	if err := s.Open(true, "node0"); err != nil {
+	if err := s.Open(); err != nil {
 		t.Fatalf("failed to open store: %s", err)
 	}
 
@@ -74,9 +92,17 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
-	s := New(tmpDir, "127.0.0.1:0", true)
+	s := New(&model.Arg{
+		InMem:     false,
+		RaftAddr:  "127.0.0.1:0",
+		RaftDir:   tmpDir,
+		NodeID:    "node0",
+		HTTPAddr:  "",
+		JoinAddr:  "",
+		Bootstrap: true,
+	})
 
-	if err := s.Open(true, "node0"); err != nil {
+	if err := s.Open(); err != nil {
 		t.Fatalf("failed to open store: %s", err)
 	}
 

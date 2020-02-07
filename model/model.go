@@ -4,15 +4,29 @@ package model
 type Peer struct {
 	Address string `json:"address"`
 	NodeID  string `json:"nodeID"`
+	State   string `json:"state"`
 }
 
-// LeaderState is state of leader
-type LeaderState struct {
-	IsLeader bool   `json:"isLeader"`
-	Current  Peer   `json:"current"`
-	Leader   Peer   `json:"leader"`
-	Servers  []Peer `json:"servers"`
+// RaftClusterState is state of leader
+type RaftClusterState struct {
+	Current Peer   `json:"current"`
+	Leader  Peer   `json:"leader"`
+	Servers []Peer `json:"servers"`
 }
+
+// JoinRequest defines the Raft join request
+type JoinRequest struct {
+	RemoteAddr string `json:"addr"`
+	NodeID     string `json:"id"`
+}
+
+// JoinResponse defines the Raft join response
+type JoinResponse struct {
+	OK  bool   `json:"ok"`
+	Msg string `json:"msg"`
+}
+
+const ContentTypeJSON = "application-type/json"
 
 // Store is the interface Raft-backed key-value stores must implement.
 type Store interface {
@@ -31,8 +45,8 @@ type Store interface {
 	// RaftStats returns the raft stats
 	RaftStats() map[string]string
 
-	// Leader returns the leader state
-	Leader() LeaderState
+	// Status returns the leader state
+	Status() RaftClusterState
 
 	// LeaderCh is used to get a channel which delivers signals on
 	// acquiring or losing leadership. It sends true if we become

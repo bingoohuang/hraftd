@@ -16,7 +16,17 @@ import (
 // Test_NewServer tests that a server can perform all basic operations.
 func Test_NewServer(t *testing.T) {
 	store := newTestStore()
-	s := &testServer{New(":0", store)}
+
+	arg := &model.Arg{
+		Bootstrap: false,
+		InMem:     false,
+		RaftAddr:  ":0",
+		RaftDir:   "",
+		NodeID:    "",
+		HTTPAddr:  ":0",
+		JoinAddr:  "",
+	}
+	s := &testServer{&Service{Arg: arg, store: store}}
 
 	if err := s.Start(); err != nil {
 		t.Fatalf("failed to start HTTP service: %s", err)
@@ -67,22 +77,14 @@ func newTestStore() *testStore { return &testStore{m: make(map[string]string)} }
 
 func (t *testStore) RaftStats() map[string]string { return map[string]string{} }
 
-func (t *testStore) Leader() model.LeaderState { return model.LeaderState{} }
-func (t *testStore) LeaderCh() <-chan bool     { return nil }
+func (t *testStore) Status() model.RaftClusterState { return model.RaftClusterState{} }
+func (t *testStore) LeaderCh() <-chan bool          { return nil }
 
 func (t *testStore) Get(key string) (string, bool, error) { return t.m[key], true, nil }
 
-func (t *testStore) Set(key, value string) error {
-	t.m[key] = value
+func (t *testStore) Set(key, value string) error { t.m[key] = value; return nil }
 
-	return nil
-}
-
-func (t *testStore) Delete(key string) error {
-	delete(t.m, key)
-
-	return nil
-}
+func (t *testStore) Delete(key string) error { delete(t.m, key); return nil }
 
 func (t *testStore) Join(nodeID, addr string) error { return nil }
 
@@ -103,7 +105,7 @@ func doGet(t *testing.T, url, key string) string {
 
 func doPost(t *testing.T, url, key, value string) {
 	b, _ := json.Marshal(map[string]string{key: value})
-	resp, err := http.Post(url+"/key", "application-type/json", bytes.NewReader(b))
+	resp, err := http.Post(url+"/key", model.ContentTypeJSON, bytes.NewReader(b))
 
 	if err != nil {
 		t.Fatalf("POST request failed: %s", err)
