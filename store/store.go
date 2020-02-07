@@ -32,12 +32,6 @@ const (
 	raftTimeout         = 10 * time.Second
 )
 
-type command struct {
-	Op    string `json:"op,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Value string `json:"value,omitempty"`
-}
-
 // Store is a simple key-value store, where all changes are made via Raft consensus.
 type Store struct {
 	mu sync.Mutex
@@ -68,8 +62,8 @@ func (s *Store) RaftStats() map[string]string { return s.raft.Stats() }
 // and does not block on writes.
 func (s *Store) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 
-// Status returns the raft cluster state
-func (s *Store) Status() (model.RaftClusterState, error) {
+// State returns the raft cluster state
+func (s *Store) State() (model.RaftClusterState, error) {
 	leader := s.raft.Leader()
 	clusterState := model.RaftClusterState{
 		Servers: make([]model.Peer, 0),
@@ -171,13 +165,16 @@ var (
 	ErrNotLeader = errors.New("not leader")
 )
 
+// IsLeader tells the current node is raft leader or not.
+func (s *Store) IsLeader() bool { return s.raft.State() == raft.Leader }
+
 // Set sets the value for the given key.
 func (s *Store) Set(key, value string) error {
-	if s.raft.State() != raft.Leader {
+	if !s.IsLeader() {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&command{Op: "set", Key: key, Value: value})
+	b, _ := json.Marshal(&model.Command{Op: "set", Key: key, Value: value})
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
@@ -185,11 +182,11 @@ func (s *Store) Set(key, value string) error {
 
 // Delete deletes the given key.
 func (s *Store) Delete(key string) error {
-	if s.raft.State() != raft.Leader {
+	if !s.IsLeader() {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&command{Op: "delete", Key: key})
+	b, _ := json.Marshal(&model.Command{Op: "delete", Key: key})
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
@@ -235,9 +232,9 @@ func (s *Store) Join(nodeID, addr string) error {
 
 // Apply applies a Raft log entry to the key-value store.
 func (s *Store) Apply(l *raft.Log) interface{} {
-	var c command
+	var c model.Command
 	if err := json.Unmarshal(l.Data, &c); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal command: %s", err.Error()))
+		panic(fmt.Sprintf("failed to unmarshal Command: %s", err.Error()))
 	}
 
 	switch c.Op {
@@ -246,7 +243,7 @@ func (s *Store) Apply(l *raft.Log) interface{} {
 	case "delete":
 		return s.lockApplyOp(func() interface{} { delete(s.m, c.Key); return nil })
 	default:
-		panic(fmt.Sprintf("unrecognized command op: %s", c.Op))
+		panic(fmt.Sprintf("unrecognized Command op: %s", c.Op))
 	}
 }
 

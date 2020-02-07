@@ -34,6 +34,9 @@ type Store interface {
 	// Get returns the value for the given key.
 	Get(key string) (string, bool, error)
 
+	// IsLeader tells the current node is raft leader or not.
+	IsLeader() bool
+
 	// Set sets the value for the given key, via distributed consensus.
 	Set(key, value string) error
 
@@ -46,12 +49,19 @@ type Store interface {
 	// RaftStats returns the raft stats
 	RaftStats() map[string]string
 
-	// Status returns the leader state
-	Status() (RaftClusterState, error)
+	// State returns the leader state
+	State() (RaftClusterState, error)
 
 	// LeaderCh is used to get a channel which delivers signals on
 	// acquiring or losing leadership. It sends true if we become
 	// the leader, and false if we lose it. The channel is not buffered,
 	// and does not block on writes.
 	LeaderCh() <-chan bool
+}
+
+// Command defines raft log value's structure
+type Command struct {
+	Op    string `json:"op,omitempty"`
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
 }

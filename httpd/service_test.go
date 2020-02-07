@@ -75,13 +75,14 @@ type testStore struct {
 
 func newTestStore() *testStore { return &testStore{m: make(map[string]string)} }
 
-func (t *testStore) RaftStats() map[string]string            { return map[string]string{} }
-func (t *testStore) Status() (model.RaftClusterState, error) { return model.RaftClusterState{}, nil }
-func (t *testStore) LeaderCh() <-chan bool                   { return nil }
-func (t *testStore) Get(key string) (string, bool, error)    { return t.m[key], true, nil }
-func (t *testStore) Set(key, value string) error             { t.m[key] = value; return nil }
-func (t *testStore) Delete(key string) error                 { delete(t.m, key); return nil }
-func (t *testStore) Join(nodeID, addr string) error          { return nil }
+func (t *testStore) RaftStats() map[string]string           { return map[string]string{} }
+func (t *testStore) State() (model.RaftClusterState, error) { return model.RaftClusterState{}, nil }
+func (t *testStore) LeaderCh() <-chan bool                  { return nil }
+func (t *testStore) Get(key string) (string, bool, error)   { return t.m[key], true, nil }
+func (t *testStore) Set(key, value string) error            { t.m[key] = value; return nil }
+func (t *testStore) Delete(key string) error                { delete(t.m, key); return nil }
+func (t *testStore) Join(nodeID, addr string) error         { return nil }
+func (t *testStore) IsLeader() bool                         { return true }
 
 func doGet(t *testing.T, url, key string) string {
 	resp, err := http.Get(fmt.Sprintf("%s/key/%s", url, key))

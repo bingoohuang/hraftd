@@ -121,7 +121,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}, w, r)
 	case path == "/raft/state":
 		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
-			status, err := s.Store.Status()
+			status, err := s.Store.State()
 			if err != nil {
 				log.Printf("failed to get raft state: %v\n", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -166,7 +166,7 @@ func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
 		s.doPost(r, w)
 	case "DELETE":
 		if key, ok := getKey(r, w); ok {
-			s.doDelete(key, w)
+			s.doDelete(key, r, w)
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -183,14 +183,38 @@ func getKey(r *http.Request, w http.ResponseWriter) (string, bool) {
 	return parts[2], true
 }
 
-func (s *Service) doDelete(k string, w http.ResponseWriter) {
+func (s *Service) doDelete(k string, r *http.Request, w http.ResponseWriter) {
+	if !s.Store.IsLeader() {
+		s.forwardToLeader(w, r)
+		return
+	}
+
 	if err := s.Store.Delete(k); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
 
+func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) {
+	status, err := s.Store.State()
+	if err != nil {
+		log.Printf("failed to get raft state: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	addrs := strings.SplitN(status.Leader.NodeID, ",", -1)
+	p := util.ReverseProxy(r.URL.Path, addrs[0], r.URL.Path, 10*time.Second) // nolint gomnd
+	p.ServeHTTP(w, r)
+}
+
 func (s *Service) doPost(r *http.Request, w http.ResponseWriter) {
+	if !s.Store.IsLeader() {
+		s.forwardToLeader(w, r)
+		return
+	}
+
 	// Read the value from the POST body.
 	m := map[string]string{}
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {

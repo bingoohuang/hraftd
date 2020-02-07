@@ -29,7 +29,6 @@ func DefineFlags() *Arg {
 	flag.StringVar(&app.RaftAddr, "raddr", ":12000", "Raft bind address")
 	flag.StringVar(&app.RaftDir, "rdir", "", "Raft data directory, default to ~/.raftdir/{id}")
 	flag.StringVar(&app.JoinAddr, "rjoin", "", "Set raft cluster join address, if any")
-	flag.StringVar(&app.NodeID, "rid", "", "Node ID, default to {ip}:{raddr port}")
 
 	return &app
 }
@@ -49,9 +48,7 @@ func FixRaftArg(arg *Arg) {
 }
 
 func parseFlagRafNodeID(app *Arg) {
-	if app.NodeID == "" {
-		app.NodeID = app.RaftAddr
-	}
+	app.NodeID = app.HTTPAddr + "," + app.RaftAddr
 }
 
 // nolint gomnd
