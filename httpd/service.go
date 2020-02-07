@@ -1,4 +1,4 @@
-// Package httpd provides the HTTP server for accessing the distributed key-value store.
+// Package httpd provides the HTTP server for accessing the distributed key-value Store.
 // It also provides the endpoint for other nodes to Join an existing cluster.
 package httpd
 
@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bingoohuang/gonet"
 	"github.com/bingoohuang/hraftd/store"
 
 	"github.com/bingoohuang/hraftd/model"
@@ -22,11 +21,9 @@ import (
 
 // Service provides HTTP service.
 type Service struct {
-	store model.Store
-
-	ln net.Listener
-
-	Arg *model.Arg
+	Store model.Store
+	Ln    net.Listener
+	Arg   *model.Arg
 }
 
 // Create returns an uninitialized HTTP service.
@@ -34,10 +31,10 @@ func Create(arg *model.Arg) *Service {
 	s := store.New(arg)
 
 	if err := s.Open(); err != nil {
-		log.Fatalf("failed to open store: %s", err.Error())
+		log.Fatalf("failed to open Store: %s", err.Error())
 	}
 
-	return &Service{Arg: arg, store: s}
+	return &Service{Arg: arg, Store: s}
 }
 
 // Start starts the service.
@@ -49,18 +46,18 @@ func (s *Service) Start() error {
 		return err
 	}
 
-	s.ln = ln
+	s.Ln = ln
 
 	http.Handle("/", s)
 
 	go func() {
-		if err := server.Serve(s.ln); err != nil {
+		if err := server.Serve(s.Ln); err != nil {
 			log.Fatalf("HTTP serve: %s", err)
 		}
 	}()
 
 	// If Join was specified, make the Join request.
-	if !s.Arg.Bootstrap {
+	if s.Arg.Bootstrap {
 		return nil
 	}
 
@@ -83,14 +80,14 @@ func Join(joinAddr, raftAddr, nodeID string) error {
 
 		resp, err := http.Post(joinURL, model.ContentTypeJSON, bytes.NewReader(b)) // nolint gosec
 		if err != nil {
-			log.Printf("joined error %v, retry after 10s\n", err)
+			log.Printf("joined error %v, retry after 10s\n", err.Error())
 
 			continue
 		}
 
 		var r model.JoinResponse
 
-		rs := gonet.ReadString(resp.Body)
+		rs := util.ReadString(resp.Body)
 		resp.Body.Close()
 		log.Printf("json response %s\n", rs)
 		_ = json.Unmarshal([]byte(rs), &r)
@@ -104,7 +101,10 @@ func Join(joinAddr, raftAddr, nodeID string) error {
 }
 
 // Close closes the service.
-func (s *Service) Close() error { return s.ln.Close() }
+func (s *Service) Close() error { return s.Ln.Close() }
+
+// Addr returns the address on which the Service is listening
+func (s *Service) Addr() net.Addr { return s.Ln.Addr() }
 
 // ServeHTTP allows Service to serve HTTP requests.
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -117,11 +117,18 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		CheckMethod("POST", s.handleJoin, w, r)
 	case path == "/raft/stats":
 		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
-			util.WriteAsJSON(s.store.RaftStats(), w)
+			util.WriteAsJSON(s.Store.RaftStats(), w)
 		}, w, r)
 	case path == "/raft/state":
 		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
-			util.WriteAsJSON(s.store.Status(), w)
+			status, err := s.Store.Status()
+			if err != nil {
+				log.Printf("failed to get raft state: %v\n", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			util.WriteAsJSON(status, w)
 		}, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
@@ -135,10 +142,16 @@ func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.store.Join(m.NodeID, m.RemoteAddr); err != nil {
+	log.Printf("received join request for remote node %s at %s\n", m.NodeID, m.RemoteAddr)
+
+	if err := s.Store.Join(m.NodeID, m.RemoteAddr); err != nil {
+		log.Printf("node %s at %s joined failed %v\n", m.NodeID, m.RemoteAddr, err.Error())
 		util.WriteAsJSON(model.JoinResponse{OK: false, Msg: err.Error()}, w)
+
 		return
 	}
+
+	log.Printf("node %s at %s joined successfully\n", m.NodeID, m.RemoteAddr)
 
 	util.WriteAsJSON(model.JoinResponse{OK: true, Msg: "OK"}, w)
 }
@@ -171,7 +184,7 @@ func getKey(r *http.Request, w http.ResponseWriter) (string, bool) {
 }
 
 func (s *Service) doDelete(k string, w http.ResponseWriter) {
-	if err := s.store.Delete(k); err != nil {
+	if err := s.Store.Delete(k); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -186,7 +199,7 @@ func (s *Service) doPost(r *http.Request, w http.ResponseWriter) {
 	}
 
 	for k, v := range m {
-		if err := s.store.Set(k, v); err != nil {
+		if err := s.Store.Set(k, v); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -194,7 +207,7 @@ func (s *Service) doPost(r *http.Request, w http.ResponseWriter) {
 }
 
 func (s *Service) doGet(k string, w http.ResponseWriter) {
-	v, ok, err := s.store.Get(k)
+	v, ok, err := s.Store.Get(k)
 
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -208,9 +221,6 @@ func (s *Service) doGet(k string, w http.ResponseWriter) {
 
 	util.WriteAsJSON(map[string]string{k: v}, w)
 }
-
-// Addr returns the address on which the Service is listening
-func (s *Service) Addr() net.Addr { return s.ln.Addr() }
 
 func CheckMethod(m string, f func(w http.ResponseWriter, r *http.Request), w http.ResponseWriter, r *http.Request) {
 	if r.Method != m {

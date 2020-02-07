@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 )
@@ -20,4 +21,19 @@ func CloneMap(m map[string]string) map[string]string {
 func WriteAsJSON(m interface{}, w io.Writer) {
 	b, _ := json.Marshal(m)
 	_, _ = w.Write(b)
+}
+
+// ReadString ...
+func ReadString(object io.ReadCloser) string {
+	return string(ReadBytes(object))
+}
+
+// ReadBytes ...
+func ReadBytes(object io.ReadCloser) []byte {
+	defer object.Close()
+
+	buf := new(bytes.Buffer)
+	_, _ = buf.ReadFrom(object)
+
+	return buf.Bytes()
 }

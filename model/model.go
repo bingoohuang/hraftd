@@ -22,8 +22,9 @@ type JoinRequest struct {
 
 // JoinResponse defines the Raft join response
 type JoinResponse struct {
-	OK  bool   `json:"ok"`
-	Msg string `json:"msg"`
+	OK   bool        `json:"ok"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
 }
 
 const ContentTypeJSON = "application-type/json"
@@ -46,7 +47,7 @@ type Store interface {
 	RaftStats() map[string]string
 
 	// Status returns the leader state
-	Status() RaftClusterState
+	Status() (RaftClusterState, error)
 
 	// LeaderCh is used to get a channel which delivers signals on
 	// acquiring or losing leadership. It sends true if we become

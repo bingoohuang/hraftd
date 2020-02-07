@@ -56,9 +56,9 @@ curl localhost:11000/key/user1
 Let's bring up 2 more nodes, so we have a 3-node cluster. That way we can tolerate the failure of 1 node:
 
 ```bash
-hraftd -haddr :11000 -raddr :12000 -join :11000
-hraftd -haddr :11001 -raddr :12001 -join :11000
-hraftd -haddr :11002 -raddr :12002 -join :11000
+hraftd -haddr :11000 -raddr :12000 -rjoin :11000
+hraftd -haddr :11001 -raddr :12001 -rjoin :11000
+hraftd -haddr :11002 -raddr :12002 -rjoin :11000
 ```
 
 This example shows each hraftd node running on the same host, so each node must listen on different ports. 
@@ -265,7 +265,7 @@ Let's also assume that each machine can reach the other two machines using these
 You should start the first node (eg 192.168.0.1) like so:
 
 ```
-hraftd -haddr :11000 -raddr :12000 -join 192.168.0.1:11000
+hraftd -haddr :11000 -raddr :12000 -rjoin 192.168.0.1:11000
 ```
 
 This way the node is listening on an address reachable from the other nodes. This node will start up and become leader of a single-node cluster.
@@ -273,13 +273,13 @@ This way the node is listening on an address reachable from the other nodes. Thi
 Next, start the second node (eg 192.168.0.2) as follows:
 
 ```
-hraftd -haddr :11000 -raddr :12000 -join 192.168.0.1:11000
+hraftd -haddr :11000 -raddr :12000 -rjoin 192.168.0.1:11000
 ```
 
 Finally, start the third node (eg 192.168.0.3) as follows:
 
 ```
-hraftd -haddr :11000 -raddr :12000 -join 192.168.0.1:11000
+hraftd -haddr :11000 -raddr :12000 -rjoin 192.168.0.1:11000
 ```
 
 Specifically using ports 11000 and 12000 is not required. You can use other ports if you wish.
@@ -295,9 +295,9 @@ hraftd    73100 bingoo    9u  IPv6 0x8708c2e9bc6d07ad      0t0  TCP *:irisa (LIS
 hraftd    73100 bingoo   11u  IPv6 0x8708c2e9bc6d0dcd      0t0  TCP localhost:irisa->localhost:59712 (ESTABLISHED)
 
 $ ps -ef|grep raft
-  502 73100 35405   0 10:39上午 ttys001    0:00.21 hraftd -haddr :11000 -raddr :12000 -join :11000
-  502 72406 46043   0 10:30上午 ttys008    0:02.41 hraftd -haddr :11001 -raddr :12001 -join :11000
-  502 72405 46094   0 10:30上午 ttys009    0:06.71 hraftd -haddr :11002 -raddr :12002 -join :11000
+  502 73100 35405   0 10:39上午 ttys001    0:00.21 hraftd -haddr :11000 -raddr :12000 -rjoin :11000
+  502 72406 46043   0 10:30上午 ttys008    0:02.41 hraftd -haddr :11001 -raddr :12001 -rjoin :11000
+  502 72405 46094   0 10:30上午 ttys009    0:06.71 hraftd -haddr :11002 -raddr :12002 -rjoin :11000
 ```
 
 #### Stale reads

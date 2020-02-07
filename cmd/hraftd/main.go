@@ -21,6 +21,17 @@ func main() {
 	log.Printf("Args:%s\n", argJSON)
 
 	h := httpd.Create(arg)
+
+	go func() {
+		for leader := range h.Store.LeaderCh() {
+			if leader {
+				log.Println("hraftd became leader")
+			} else {
+				log.Println("hraftd lost leader")
+			}
+		}
+	}()
+
 	if err := h.Start(); err != nil {
 		log.Fatalf("failed to start HTTP service: %s", err.Error())
 	}

@@ -69,17 +69,14 @@ func (s *Store) RaftStats() map[string]string { return s.raft.Stats() }
 func (s *Store) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 
 // Status returns the raft cluster state
-func (s *Store) Status() model.RaftClusterState {
+func (s *Store) Status() (model.RaftClusterState, error) {
 	leader := s.raft.Leader()
 	clusterState := model.RaftClusterState{
 		Servers: make([]model.Peer, 0),
 	}
 
-	_ = s.walkRaftServers(func(srv raft.Server) error {
-		peer := model.Peer{
-			Address: string(srv.Address),
-			NodeID:  string(srv.ID),
-		}
+	err := s.walkRaftServers(func(srv raft.Server) error {
+		peer := model.Peer{Address: string(srv.Address), NodeID: string(srv.ID)}
 
 		if leader == srv.Address {
 			peer.State = raft.Leader.String()
@@ -96,7 +93,7 @@ func (s *Store) Status() model.RaftClusterState {
 		return nil
 	})
 
-	return clusterState
+	return clusterState, err
 }
 
 // Open opens the store. If enableSingle is set, and there are no existing peers,
@@ -117,15 +114,16 @@ func (s *Store) Open() error {
 		return err
 	}
 
-	raft, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, transport)
+	r, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, transport)
 	if err != nil {
 		return fmt.Errorf("new raft: %s", err)
 	}
 
-	s.raft = raft
+	s.raft = r
 
 	if s.Arg.Bootstrap {
-		bootstrapCluster(config, transport, raft)
+		s.raft.BootstrapCluster(raft.Configuration{
+			Servers: []raft.Server{{ID: config.LocalID, Address: transport.LocalAddr()}}})
 	}
 
 	return nil
@@ -143,7 +141,7 @@ func (s *Store) createTransport() (*raft.NetworkTransport, error) {
 }
 
 // createStores creates the log store and stable store.
-func (s *Store) createStores() (raft.LogStore, raft.StableStore, *raft.FileSnapshotStore, error) {
+func (s *Store) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
 	// Create the snapshot store. This allows the Raft to truncate the log.
 	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftDir, retainSnapshotCount, os.Stderr)
 	if err != nil {
@@ -162,24 +160,9 @@ func (s *Store) createStores() (raft.LogStore, raft.StableStore, *raft.FileSnaps
 	return db, db, ss, nil
 }
 
-func bootstrapCluster(c *raft.Config, t *raft.NetworkTransport, ra *raft.Raft) {
-	configuration := raft.Configuration{
-		Servers: []raft.Server{
-			{
-				ID:      c.LocalID,
-				Address: t.LocalAddr(),
-			},
-		},
-	}
-	ra.BootstrapCluster(configuration)
-}
-
 // Get returns the value for the given key.
 func (s *Store) Get(key string) (v string, ok bool, err error) {
-	s.lockApplyOp(func() interface{} {
-		v, ok = s.m[key]
-		return nil
-	})
+	s.lockApplyOp(func() interface{} { v, ok = s.m[key]; return nil })
 
 	return
 }
@@ -215,8 +198,6 @@ func (s *Store) Delete(key string) error {
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
 func (s *Store) Join(nodeID, addr string) error {
-	s.logger.Printf("received join request for remote node %s at %s", nodeID, addr)
-
 	serverID := raft.ServerID(nodeID)
 	serverAddress := raft.ServerAddress(addr)
 
@@ -229,14 +210,12 @@ func (s *Store) Join(nodeID, addr string) error {
 		// If *both* the ID and the address are the same,
 		// then nothing -- not even a join operation -- is needed.
 		if AddrEquals && idEquals {
-			s.logger.Printf("node %s at %s already member of cluster, ignoring join request", nodeID, addr)
-			return nil
+			return nil // already member of cluster, ignoring join request
 		}
 
 		if idEquals || AddrEquals {
-			future := s.raft.RemoveServer(srv.ID, 0, 0)
-			if err := future.Error(); err != nil {
-				return fmt.Errorf("error removing existing node %s at %s: %s", nodeID, addr, err)
+			if f := s.raft.RemoveServer(srv.ID, 0, 0); f.Error() != nil {
+				return fmt.Errorf("error removing existing node %s at %s: %w", nodeID, addr, f.Error())
 			}
 		}
 
@@ -247,15 +226,9 @@ func (s *Store) Join(nodeID, addr string) error {
 		return err
 	}
 
-	f := s.raft.AddVoter(serverID, serverAddress, 0, 0)
-	err = f.Error()
-
-	if err != nil {
-		s.logger.Printf("node %s at %s joined error %v", nodeID, addr, err)
-		return err
+	if f := s.raft.AddVoter(serverID, serverAddress, 0, 0); f.Error() != nil {
+		return fmt.Errorf("node %s at %s joined error %w", nodeID, addr, err)
 	}
-
-	s.logger.Printf("node %s at %s joined successfully", nodeID, addr)
 
 	return nil
 }
@@ -323,14 +296,12 @@ func (f *fsmSnapshot) Release() {}
 func (s *Store) walkRaftServers(f func(srv raft.Server) error) error {
 	configFuture := s.raft.GetConfiguration()
 	if err := configFuture.Error(); err != nil {
-		s.logger.Printf("failed to get raft configuration: %v", err)
-
-		return err
+		return fmt.Errorf("failed to get raft configuration: %w", err)
 	}
 
 	for _, srv := range configFuture.Configuration().Servers {
 		if err := f(srv); err != nil {
-			return err
+			return fmt.Errorf("failed to invoke walk fn: %w", err)
 		}
 	}
 

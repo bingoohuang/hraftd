@@ -2,13 +2,10 @@ package model
 
 import (
 	"flag"
-	"net"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
-
-	"github.com/bingoohuang/gonet"
 )
 
 // Arg Command line parameters
@@ -31,7 +28,7 @@ func DefineFlags() *Arg {
 	flag.StringVar(&app.HTTPAddr, "haddr", ":11000", "HTTP bind address")
 	flag.StringVar(&app.RaftAddr, "raddr", ":12000", "Raft bind address")
 	flag.StringVar(&app.RaftDir, "rdir", "", "Raft data directory, default to ~/.raftdir/{id}")
-	flag.StringVar(&app.JoinAddr, "join", "", "Set join address, if any")
+	flag.StringVar(&app.JoinAddr, "rjoin", "", "Set raft cluster join address, if any")
 	flag.StringVar(&app.NodeID, "rid", "", "Node ID, default to {ip}:{raddr port}")
 
 	return &app
@@ -52,12 +49,9 @@ func FixRaftArg(arg *Arg) {
 }
 
 func parseFlagRafNodeID(app *Arg) {
-	if app.NodeID != "" {
-		return
+	if app.NodeID == "" {
+		app.NodeID = app.RaftAddr
 	}
-
-	_, port, _ := net.SplitHostPort(app.RaftAddr)
-	app.NodeID = gonet.ListIpsv4()[0] + ":" + port
 }
 
 // nolint gomnd
@@ -75,27 +69,5 @@ func parseFlagRaftDir(app *Arg) {
 }
 
 func parseBootstrap(arg *Arg) {
-	bootstrap := arg.JoinAddr == "" || arg.JoinAddr == arg.HTTPAddr
-	if bootstrap {
-		arg.Bootstrap = true
-		return
-	}
-
-	hhost, hport, _ := net.SplitHostPort(arg.HTTPAddr)
-	host, port, _ := net.SplitHostPort(arg.JoinAddr)
-
-	if host == "" {
-		host = "127.0.0.1"
-	}
-
-	if hhost == "" {
-		hhost = "127.0.0.1"
-	}
-
-	isLocalHost := func(h string) bool {
-		yes, _ := gonet.IsLocalAddr(h)
-		return yes
-	}
-
-	arg.Bootstrap = hport == port && (hhost == host || isLocalHost(hhost) && isLocalHost(host))
+	arg.Bootstrap = arg.JoinAddr == "" || arg.JoinAddr == arg.HTTPAddr
 }
