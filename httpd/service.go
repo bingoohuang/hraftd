@@ -74,7 +74,7 @@ func (s *Service) Start() error {
 // Join joins the current not to raft cluster
 func Join(joinAddr, raftAddr, nodeID string) error {
 	b, _ := json.Marshal(model.JoinRequest{RemoteAddr: raftAddr, NodeID: nodeID})
-	joinURL := fmt.Sprintf("http://%s/Join", joinAddr)
+	joinURL := fmt.Sprintf("http://%s/raft/join", joinAddr)
 
 	for i := 0; i < 10; i++ {
 		if i > 0 {
@@ -113,13 +113,13 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.HasPrefix(path, "/key"):
 		s.handleKeyRequest(w, r)
-	case path == "/Join":
+	case path == "/raft/join":
 		CheckMethod("POST", s.handleJoin, w, r)
 	case path == "/raft/stats":
 		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
 			util.WriteAsJSON(s.store.RaftStats(), w)
 		}, w, r)
-	case path == "/raft/leader":
+	case path == "/raft/state":
 		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
 			util.WriteAsJSON(s.store.Status(), w)
 		}, w, r)

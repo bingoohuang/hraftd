@@ -40,8 +40,6 @@ type command struct {
 
 // Store is a simple key-value store, where all changes are made via Raft consensus.
 type Store struct {
-	inMemory bool
-
 	mu sync.Mutex
 	m  map[string]string // The key-value store for the system.
 
@@ -55,9 +53,8 @@ type Store struct {
 // New returns a new Store.
 func New(arg *model.Arg) *Store {
 	return &Store{
-		m:        make(map[string]string),
-		inMemory: arg.InMem,
-		logger:   log.New(os.Stderr, "[store] ", log.LstdFlags),
+		m:      make(map[string]string),
+		logger: log.New(os.Stderr, "[store] ", log.LstdFlags),
 
 		Arg: arg,
 	}
@@ -130,37 +127,38 @@ func (s *Store) Open() error {
 		return fmt.Errorf("file snapshot store: %s", err)
 	}
 
-	// Create the log store and stable store.
-	var logStore raft.LogStore
-
-	var stableStore raft.StableStore
-
-	if s.inMemory {
-		logStore = raft.NewInmemStore()
-		stableStore = raft.NewInmemStore()
-	} else {
-		boltDB, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftDir, "raft.db"))
-		if err != nil {
-			return fmt.Errorf("new bolt store: %s", err)
-		}
-
-		logStore = boltDB
-		stableStore = boltDB
+	logStore, stableStore, err := s.createStores()
+	if err != nil {
+		return err
 	}
 
 	// Instantiate the Raft systems.
-	ra, err := raft.NewRaft(config, (*fsm)(s), logStore, stableStore, snapshots, transport)
+	raft, err := raft.NewRaft(config, (*fsm)(s), logStore, stableStore, snapshots, transport)
 	if err != nil {
 		return fmt.Errorf("new raft: %s", err)
 	}
 
-	s.raft = ra
+	s.raft = raft
 
 	if s.Arg.Bootstrap {
-		bootstrapCluster(config, transport, ra)
+		bootstrapCluster(config, transport, raft)
 	}
 
 	return nil
+}
+
+// createStores creates the log store and stable store.
+func (s *Store) createStores() (raft.LogStore, raft.StableStore, error) {
+	if s.Arg.InMem {
+		return raft.NewInmemStore(), raft.NewInmemStore(), nil
+	}
+
+	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftDir, "raft.db"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("new bolt store: %s", err)
+	}
+
+	return db, db, nil
 }
 
 func bootstrapCluster(c *raft.Config, t *raft.NetworkTransport, ra *raft.Raft) {

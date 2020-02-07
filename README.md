@@ -155,33 +155,37 @@ output:
 }
 ```
 
-`curl localhost:11000/raft/leader localhost:11001/raft/leader localhost:11002/raft/leader | jq`
+`curl localhost:11000/raft/state localhost:11001/raft/state localhost:11002/raft/state | jq`
 
 output:
 
 ```json
 {
-  "isLeader": true,
   "current": {
     "address": ":12000",
-    "nodeID": "192.168.10.101:12000"
+    "nodeID": "192.168.10.101:12000",
+    "state": "Follower"
   },
   "leader": {
-    "address": ":12000",
-    "nodeID": "192.168.10.101:12000"
+    "address": ":12002",
+    "nodeID": "192.168.10.101:12002",
+    "state": "Leader"
   },
   "servers": [
     {
       "address": ":12000",
-      "nodeID": "192.168.10.101:12000"
+      "nodeID": "192.168.10.101:12000",
+      "state": "Follower"
     },
     {
       "address": ":12002",
-      "nodeID": "192.168.10.101:12002"
+      "nodeID": "192.168.10.101:12002",
+      "state": "Leader"
     },
     {
       "address": ":12001",
-      "nodeID": "192.168.10.101:12001"
+      "nodeID": "192.168.10.101:12001",
+      "state": ""
     }
   ]
 }
@@ -189,27 +193,31 @@ output:
 
 ```json
 {
-  "isLeader": false,
   "current": {
     "address": ":12001",
-    "nodeID": "192.168.10.101:12001"
+    "nodeID": "192.168.10.101:12001",
+    "state": "Follower"
   },
   "leader": {
-    "address": ":12000",
-    "nodeID": "192.168.10.101:12000"
+    "address": ":12002",
+    "nodeID": "192.168.10.101:12002",
+    "state": "Leader"
   },
   "servers": [
     {
       "address": ":12000",
-      "nodeID": "192.168.10.101:12000"
+      "nodeID": "192.168.10.101:12000",
+      "state": ""
     },
     {
       "address": ":12002",
-      "nodeID": "192.168.10.101:12002"
+      "nodeID": "192.168.10.101:12002",
+      "state": "Leader"
     },
     {
       "address": ":12001",
-      "nodeID": "192.168.10.101:12001"
+      "nodeID": "192.168.10.101:12001",
+      "state": "Follower"
     }
   ]
 }
@@ -217,27 +225,31 @@ output:
 
 ```json
 {
-  "isLeader": false,
   "current": {
     "address": ":12002",
-    "nodeID": "192.168.10.101:12002"
+    "nodeID": "192.168.10.101:12002",
+    "state": "Leader"
   },
   "leader": {
-    "address": ":12000",
-    "nodeID": "192.168.10.101:12000"
+    "address": ":12002",
+    "nodeID": "192.168.10.101:12002",
+    "state": "Leader"
   },
   "servers": [
     {
       "address": ":12000",
-      "nodeID": "192.168.10.101:12000"
+      "nodeID": "192.168.10.101:12000",
+      "state": ""
     },
     {
       "address": ":12002",
-      "nodeID": "192.168.10.101:12002"
+      "nodeID": "192.168.10.101:12002",
+      "state": "Leader"
     },
     {
       "address": ":12001",
-      "nodeID": "192.168.10.101:12001"
+      "nodeID": "192.168.10.101:12001",
+      "state": ""
     }
   ]
 }
