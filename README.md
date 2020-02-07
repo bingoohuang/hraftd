@@ -336,3 +336,4 @@ to replicate a SQLite database, check out [rqlite](https://github.com/rqlite/rql
 1. [基于hashicorp/raft的分布式一致性实战教学](https://zhuanlan.zhihu.com/p/58048906)
 1. [raft可视化](http://thesecretlivesofdata.com/raft/)
 1. [Leto - 基于raft快速实现一个key-value存储系统](https://xiking.win/2018/07/30/implement-key-value-store-using-raft/)
+1. [使用 Raft 实现 VIP 功能](https://zdyxry.github.io/2020/01/17/%E4%BD%BF%E7%94%A8-Raft-%E5%AE%9E%E7%8E%B0-VIP-%E5%8A%9F%E8%83%BD/)
