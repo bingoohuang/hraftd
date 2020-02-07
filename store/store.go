@@ -75,7 +75,7 @@ func (s *Store) Status() model.RaftClusterState {
 		Servers: make([]model.Peer, 0),
 	}
 
-	_ = s.iterateRaftServers(func(srv raft.Server) error {
+	_ = s.walkRaftServers(func(srv raft.Server) error {
 		peer := model.Peer{
 			Address: string(srv.Address),
 			NodeID:  string(srv.ID),
@@ -107,31 +107,16 @@ func (s *Store) Open() error {
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(s.Arg.NodeID)
 
-	// Setup Raft communication.
-	addr, err := net.ResolveTCPAddr("tcp", s.Arg.RaftAddr)
+	logStore, stableStore, snapshots, err := s.createStores()
 	if err != nil {
 		return err
 	}
 
-	// nolint gomnd
-	transport, err := raft.NewTCPTransport(s.Arg.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
-
+	transport, err := s.createTransport()
 	if err != nil {
 		return err
 	}
 
-	// Create the snapshot store. This allows the Raft to truncate the log.
-	snapshots, err := raft.NewFileSnapshotStore(s.Arg.RaftDir, retainSnapshotCount, os.Stderr)
-	if err != nil {
-		return fmt.Errorf("file snapshot store: %s", err)
-	}
-
-	logStore, stableStore, err := s.createStores()
-	if err != nil {
-		return err
-	}
-
-	// Instantiate the Raft systems.
 	raft, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, transport)
 	if err != nil {
 		return fmt.Errorf("new raft: %s", err)
@@ -146,18 +131,35 @@ func (s *Store) Open() error {
 	return nil
 }
 
+func (s *Store) createTransport() (*raft.NetworkTransport, error) {
+	// Setup Raft communication.
+	addr, err := net.ResolveTCPAddr("tcp", s.Arg.RaftAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// nolint gomnd
+	return raft.NewTCPTransport(s.Arg.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
+}
+
 // createStores creates the log store and stable store.
-func (s *Store) createStores() (raft.LogStore, raft.StableStore, error) {
+func (s *Store) createStores() (raft.LogStore, raft.StableStore, *raft.FileSnapshotStore, error) {
+	// Create the snapshot store. This allows the Raft to truncate the log.
+	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftDir, retainSnapshotCount, os.Stderr)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("file snapshot store: %s", err)
+	}
+
 	if s.Arg.InMem {
-		return raft.NewInmemStore(), raft.NewInmemStore(), nil
+		return raft.NewInmemStore(), raft.NewInmemStore(), ss, nil
 	}
 
 	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftDir, "raft.db"))
 	if err != nil {
-		return nil, nil, fmt.Errorf("new bolt store: %s", err)
+		return nil, nil, nil, fmt.Errorf("new bolt store: %s", err)
 	}
 
-	return db, db, nil
+	return db, db, ss, nil
 }
 
 func bootstrapCluster(c *raft.Config, t *raft.NetworkTransport, ra *raft.Raft) {
@@ -210,23 +212,6 @@ func (s *Store) Delete(key string) error {
 	return f.Error()
 }
 
-func (s *Store) iterateRaftServers(f func(srv raft.Server) error) error {
-	configFuture := s.raft.GetConfiguration()
-	if err := configFuture.Error(); err != nil {
-		s.logger.Printf("failed to get raft configuration: %v", err)
-
-		return err
-	}
-
-	for _, srv := range configFuture.Configuration().Servers {
-		if err := f(srv); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
 func (s *Store) Join(nodeID, addr string) error {
@@ -235,7 +220,7 @@ func (s *Store) Join(nodeID, addr string) error {
 	serverID := raft.ServerID(nodeID)
 	serverAddress := raft.ServerAddress(addr)
 
-	err := s.iterateRaftServers(func(srv raft.Server) error {
+	err := s.walkRaftServers(func(srv raft.Server) error {
 		// If a node already exists with either the joining node's ID or address,
 		// that node may need to be removed from the config first.
 		idEquals := srv.ID == serverID
@@ -311,28 +296,18 @@ func (s *Store) Restore(rc io.ReadCloser) error {
 	return nil
 }
 
-func (s *Store) lockApplyOp(fn func() interface{}) interface{} {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return fn()
-}
-
 type fsmSnapshot struct {
 	store map[string]string
 }
 
 func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 	err := func() error {
-		// Encode data.
 		b, _ := json.Marshal(f.store)
 
-		// Write data to sink.
 		if _, err := sink.Write(b); err != nil {
 			return err
 		}
 
-		// Close the sink.
 		return sink.Close()
 	}()
 
@@ -344,3 +319,27 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 }
 
 func (f *fsmSnapshot) Release() {}
+
+func (s *Store) walkRaftServers(f func(srv raft.Server) error) error {
+	configFuture := s.raft.GetConfiguration()
+	if err := configFuture.Error(); err != nil {
+		s.logger.Printf("failed to get raft configuration: %v", err)
+
+		return err
+	}
+
+	for _, srv := range configFuture.Configuration().Servers {
+		if err := f(srv); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Store) lockApplyOp(fn func() interface{}) interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return fn()
+}
