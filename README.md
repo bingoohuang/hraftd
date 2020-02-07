@@ -287,6 +287,18 @@ Specifically using ports 11000 and 12000 is not required. You can use other port
 Note how each node listens on its own address, but joins to the address of the leader node. 
 The second and third nodes will start, join the with leader at `192.168.0.2:11000`, and a 3-node cluster will be formed.
 
+```bash
+$ lsof -i tcp:11000
+COMMAND     PID   USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+XiYouProx  5344 bingoo  115u  IPv4 0x8708c2e9ace67df5      0t0  TCP localhost:59712->localhost:irisa (ESTABLISHED)
+hraftd    73100 bingoo    9u  IPv6 0x8708c2e9bc6d07ad      0t0  TCP *:irisa (LISTEN)
+hraftd    73100 bingoo   11u  IPv6 0x8708c2e9bc6d0dcd      0t0  TCP localhost:irisa->localhost:59712 (ESTABLISHED)
+
+$ ps -ef|grep raft
+  502 73100 35405   0 10:39上午 ttys001    0:00.21 hraftd -haddr :11000 -raddr :12000 -join :11000
+  502 72406 46043   0 10:30上午 ttys008    0:02.41 hraftd -haddr :11001 -raddr :12001 -join :11000
+  502 72405 46094   0 10:30上午 ttys009    0:06.71 hraftd -haddr :11002 -raddr :12002 -join :11000
+```
 
 #### Stale reads
 
