@@ -3,9 +3,7 @@
 package httpd
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -61,56 +59,17 @@ func (s *Service) Start() error {
 		return nil
 	}
 
-	if err := Join(s.Arg.JoinAddr, s.Arg.RaftAddr, s.Arg.NodeID); err != nil {
+	if err := s.Arg.Join(); err != nil {
 		log.Fatalf("failed to Join node at %s: %s", s.Arg.JoinAddr, err.Error())
 	}
 
 	return nil
 }
 
-// Join joins the current not to raft cluster
-func Join(joinAddr, raftAddr, nodeID string) error {
-	b, _ := json.Marshal(model.JoinRequest{RemoteAddr: raftAddr, NodeID: nodeID})
-	host, port, _ := net.SplitHostPort(joinAddr)
-
-	if host == "" {
-		host = "127.0.0.1"
-	}
-
-	joinURL := fmt.Sprintf("http://%s:%s/raft/join", host, port)
-	log.Printf("joinURL %s\n", joinURL)
-
-	for i := 0; i < 10; i++ {
-		if i > 0 {
-			time.Sleep(10 * time.Second) // nolint gomnd
-		}
-
-		resp, err := http.Post(joinURL, model.ContentTypeJSON, bytes.NewReader(b)) // nolint gosec
-		if err != nil {
-			log.Printf("joined error %v, retry after 10s\n", err.Error())
-
-			continue
-		}
-
-		var r model.JoinResponse
-
-		rs := util.ReadString(resp.Body)
-		resp.Body.Close()
-		log.Printf("json response %s\n", rs)
-		_ = json.Unmarshal([]byte(rs), &r)
-
-		if r.OK {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("failed to Join %s", joinURL)
-}
-
 // Close closes the service.
 func (s *Service) Close() error { return s.Ln.Close() }
 
-// Addr returns the address on which the Service is listening
+// BindAddr returns the address on which the Service is listening
 func (s *Service) Addr() net.Addr { return s.Ln.Addr() }
 
 // ServeHTTP allows Service to serve HTTP requests.
@@ -132,11 +91,15 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}, w, r)
 	case path == "/raft/state":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
-			if status, err := s.Store.State(); err != nil {
+			util.WriteAsJSON(model.Rsp{OK: true, Msg: s.Store.NodeState()}, w)
+		}, w, r)
+	case path == "/raft/servers":
+		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
+			if servers, err := s.Store.RaftServers(); err != nil {
 				log.Printf("failed to get raft state: %v\n", err)
 				w.WriteHeader(http.StatusInternalServerError)
 			} else {
-				util.WriteAsJSON(status, w)
+				util.WriteAsJSON(servers, w)
 			}
 		}, w, r)
 	default:
@@ -147,22 +110,22 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) {
 	var m model.JoinRequest
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		util.WriteAsJSON(model.JoinResponse{OK: false, Msg: err.Error()}, w)
+		util.WriteAsJSON(model.Rsp{OK: false, Msg: err.Error()}, w)
 		return
 	}
 
 	log.Printf("received join request for remote node %s at %s\n", m.NodeID, m.RemoteAddr)
 
-	if err := s.Store.Join(m.NodeID, m.RemoteAddr); err != nil {
+	if err := s.Store.Join(string(m.NodeID), m.RemoteAddr); err != nil {
 		log.Printf("node %s at %s joined failed %v\n", m.NodeID, m.RemoteAddr, err.Error())
-		util.WriteAsJSON(model.JoinResponse{OK: false, Msg: err.Error()}, w)
+		util.WriteAsJSON(model.Rsp{OK: false, Msg: err.Error()}, w)
 
 		return
 	}
 
 	log.Printf("node %s at %s joined successfully\n", m.NodeID, m.RemoteAddr)
 
-	util.WriteAsJSON(model.JoinResponse{OK: true, Msg: "OK"}, w)
+	util.WriteAsJSON(model.Rsp{OK: true, Msg: "OK"}, w)
 }
 
 func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
@@ -205,7 +168,7 @@ func (s *Service) doDelete(k string, r *http.Request, w http.ResponseWriter) {
 }
 
 func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) {
-	status, err := s.Store.State()
+	status, err := s.Store.RaftServers()
 	if err != nil {
 		log.Printf("failed to get raft state: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -213,8 +176,8 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addrs := strings.SplitN(status.Leader.NodeID, ",", -1)
-	p := util.ReverseProxy(r.URL.Path, addrs[0], r.URL.Path, 10*time.Second) // nolint gomnd
+	addr := status.Leader.NodeID.HTTPAddr()
+	p := util.ReverseProxy(r.URL.Path, addr, r.URL.Path, 10*time.Second) // nolint gomnd
 	p.ServeHTTP(w, r)
 }
 
@@ -255,7 +218,11 @@ func (s *Service) doGet(k string, w http.ResponseWriter) {
 	util.WriteAsJSON(map[string]string{k: v}, w)
 }
 
-func CheckMethod(m string, f func(w http.ResponseWriter, r *http.Request), w http.ResponseWriter, r *http.Request) {
+// ServeHTTPFn defines ServeHTTP function prototype.
+type ServeHTTPFn func(w http.ResponseWriter, r *http.Request)
+
+// CheckMethod checks the method and invoke f.
+func CheckMethod(m string, f ServeHTTPFn, w http.ResponseWriter, r *http.Request) {
 	if r.Method != m {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 

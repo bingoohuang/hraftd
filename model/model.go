@@ -5,12 +5,12 @@ import "github.com/hashicorp/raft"
 // Peer defines the peers information
 type Peer struct {
 	Address string `json:"address"`
-	NodeID  string `json:"nodeID"`
+	NodeID  NodeID `json:"nodeID"`
 	State   string `json:"state"`
 }
 
-// RaftClusterState is state of leader
-type RaftClusterState struct {
+// RaftCluster is raft cluster
+type RaftCluster struct {
 	Current Peer   `json:"current"`
 	Leader  Peer   `json:"leader"`
 	Servers []Peer `json:"servers"`
@@ -19,17 +19,15 @@ type RaftClusterState struct {
 // JoinRequest defines the Raft join request
 type JoinRequest struct {
 	RemoteAddr string `json:"addr"`
-	NodeID     string `json:"id"`
+	NodeID     NodeID `json:"id"`
 }
 
-// JoinResponse defines the Raft join response
-type JoinResponse struct {
+// Rsp defines the Raft join response
+type Rsp struct {
 	OK   bool        `json:"ok"`
 	Msg  string      `json:"msg"`
 	Data interface{} `json:"data"`
 }
-
-const ContentTypeJSON = "application-type/json"
 
 // Store is the interface Raft-backed key-value stores must implement.
 type Store interface {
@@ -51,14 +49,17 @@ type Store interface {
 	// RaftStats returns the raft stats
 	RaftStats() map[string]string
 
-	// State returns the leader state
-	State() (RaftClusterState, error)
+	// RaftServers returns the raft cluster servers
+	RaftServers() (RaftCluster, error)
 
 	// LeaderCh is used to get a channel which delivers signals on
 	// acquiring or losing leadership. It sends true if we become
 	// the leader, and false if we lose it. The channel is not buffered,
 	// and does not block on writes.
 	LeaderCh() <-chan bool
+
+	// NodeState returns the state of current node
+	NodeState() string
 }
 
 // Command defines raft log value's structure

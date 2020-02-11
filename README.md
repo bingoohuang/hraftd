@@ -56,9 +56,9 @@ curl localhost:11000/key/user1
 Let's bring up 2 more nodes, so we have a 3-node cluster. That way we can tolerate the failure of 1 node:
 
 ```bash
-hraftd -haddr :11000 -raddr :12000 -rjoin :11000
-hraftd -haddr :11001 -raddr :12001 -rjoin :11000
-hraftd -haddr :11002 -raddr :12002 -rjoin :11000
+hraftd -rjoin :11000 -haddr :11000
+hraftd -rjoin :11000 -haddr :11001
+hraftd -rjoin :11000 -haddr :11002
 ```
 
 This example shows each hraftd node running on the same host, so each node must listen on different ports.

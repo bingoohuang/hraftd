@@ -18,7 +18,7 @@ func main() {
 
 	flag.Parse()
 
-	model.FixRaftArg(arg)
+	arg.FixRaftArg()
 
 	argJSON, _ := json.Marshal(arg)
 	log.Printf("Args:%s\n", argJSON)

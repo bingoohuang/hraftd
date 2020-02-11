@@ -71,32 +71,56 @@ func (s *Store) RaftStats() map[string]string { return s.raft.Stats() }
 // and does not block on writes.
 func (s *Store) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 
-// State returns the raft cluster state
-func (s *Store) State() (model.RaftClusterState, error) {
+// NodeState returns the state of current node
+func (s *Store) NodeState() string { return s.raft.State().String() }
+
+// RaftServers returns the raft cluster state
+func (s *Store) RaftServers() (model.RaftCluster, error) {
 	leader := s.raft.Leader()
-	clusterState := model.RaftClusterState{
+	cluster := model.RaftCluster{
 		Servers: make([]model.Peer, 0),
 	}
 
 	err := s.walkRaftServers(func(srv raft.Server) error {
-		peer := model.Peer{Address: string(srv.Address), NodeID: string(srv.ID)}
+		peer := model.Peer{Address: string(srv.Address), NodeID: model.NodeID(srv.ID)}
 
 		if leader == srv.Address {
 			peer.State = raft.Leader.String()
-			clusterState.Leader = peer
+			cluster.Leader = peer
 		}
 
 		if s.Arg.NodeID == peer.NodeID {
 			peer.State = s.raft.State().String()
-			clusterState.Current = peer
+			cluster.Current = peer
 		}
 
-		clusterState.Servers = append(clusterState.Servers, peer)
+		if peer.State == "" {
+			if r := s.getNodeState(peer); r.OK {
+				peer.State = r.Msg
+			}
+		}
+
+		if peer.State != "" {
+			cluster.Servers = append(cluster.Servers, peer)
+		}
 
 		return nil
 	})
 
-	return clusterState, err
+	return cluster, err
+}
+
+func (s *Store) getNodeState(peer model.Peer) *model.Rsp {
+	r := &model.Rsp{}
+	u := peer.NodeID.URL("/raft/state")
+	rsp, err := util.GetJSON(u, r)
+	s.logger.Printf("invoke get node state %s rsp %v\n", u, rsp)
+
+	if err != nil {
+		s.logger.Printf("invoke %s error %v", u, err)
+	}
+
+	return r
 }
 
 // Open opens the store. If enableSingle is set, and there are no existing peers,

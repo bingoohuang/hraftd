@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bingoohuang/hraftd/util"
+
 	"github.com/bingoohuang/hraftd/model"
 )
 
@@ -75,14 +77,15 @@ type testStore struct {
 
 func newTestStore() *testStore { return &testStore{m: make(map[string]string)} }
 
-func (t *testStore) RaftStats() map[string]string           { return map[string]string{} }
-func (t *testStore) State() (model.RaftClusterState, error) { return model.RaftClusterState{}, nil }
-func (t *testStore) LeaderCh() <-chan bool                  { return nil }
-func (t *testStore) Get(key string) (string, bool, error)   { return t.m[key], true, nil }
-func (t *testStore) Set(key, value string) error            { t.m[key] = value; return nil }
-func (t *testStore) Delete(key string) error                { delete(t.m, key); return nil }
-func (t *testStore) Join(nodeID, addr string) error         { return nil }
-func (t *testStore) IsLeader() bool                         { return true }
+func (t *testStore) RaftStats() map[string]string            { return map[string]string{} }
+func (t *testStore) RaftServers() (model.RaftCluster, error) { return model.RaftCluster{}, nil }
+func (t *testStore) LeaderCh() <-chan bool                   { return nil }
+func (t *testStore) Get(key string) (string, bool, error)    { return t.m[key], true, nil }
+func (t *testStore) Set(key, value string) error             { t.m[key] = value; return nil }
+func (t *testStore) Delete(key string) error                 { delete(t.m, key); return nil }
+func (t *testStore) Join(nodeID, addr string) error          { return nil }
+func (t *testStore) IsLeader() bool                          { return true }
+func (t *testStore) NodeState() string                       { return "" }
 
 func doGet(t *testing.T, url, key string) string {
 	resp, err := http.Get(fmt.Sprintf("%s/key/%s", url, key))
@@ -101,7 +104,7 @@ func doGet(t *testing.T, url, key string) string {
 
 func doPost(t *testing.T, url, key, value string) {
 	b, _ := json.Marshal(map[string]string{key: value})
-	resp, err := http.Post(url+"/key", model.ContentTypeJSON, bytes.NewReader(b))
+	resp, err := http.Post(url+"/key", util.ContentTypeJSON, bytes.NewReader(b))
 
 	if err != nil {
 		t.Fatalf("POST request failed: %s", err)
@@ -116,13 +119,8 @@ func doDelete(t *testing.T, u, key string) {
 		t.Fatalf("failed to parse URL for delete: %s", err)
 	}
 
-	req := &http.Request{
-		Method: "DELETE",
-		URL:    ru,
-	}
-
 	client := http.Client{}
-	resp, err := client.Do(req)
+	resp, err := client.Do(&http.Request{Method: "DELETE", URL: ru})
 
 	if err != nil {
 		t.Fatalf("failed to GET key: %s", err)
