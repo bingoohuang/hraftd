@@ -32,7 +32,7 @@ type Rsp struct {
 // Store is the interface Raft-backed key-value stores must implement.
 type Store interface {
 	// Get returns the value for the given key.
-	Get(key string) (string, bool, error)
+	Get(key string) (string, bool)
 
 	// IsLeader tells the current node is raft leader or not.
 	IsLeader() bool

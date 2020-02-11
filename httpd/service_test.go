@@ -72,16 +72,16 @@ type testStore struct {
 
 func newTestStore() *testStore { return &testStore{m: make(map[string]string)} }
 
-func (t *testStore) RaftStats() map[string]string         { return map[string]string{} }
-func (t *testStore) Cluster() (model.RaftCluster, error)  { return model.RaftCluster{}, nil }
-func (t *testStore) LeadServer() (model.Peer, error)      { return model.Peer{}, nil }
-func (t *testStore) LeaderCh() <-chan bool                { return nil }
-func (t *testStore) Get(key string) (string, bool, error) { return t.m[key], true, nil }
-func (t *testStore) Set(key, value string) error          { t.m[key] = value; return nil }
-func (t *testStore) Delete(key string) error              { delete(t.m, key); return nil }
-func (t *testStore) Join(nodeID, addr string) error       { return nil }
-func (t *testStore) IsLeader() bool                       { return true }
-func (t *testStore) NodeState() string                    { return "" }
+func (t *testStore) RaftStats() map[string]string        { return map[string]string{} }
+func (t *testStore) Cluster() (model.RaftCluster, error) { return model.RaftCluster{}, nil }
+func (t *testStore) LeadServer() (model.Peer, error)     { return model.Peer{}, nil }
+func (t *testStore) LeaderCh() <-chan bool               { return nil }
+func (t *testStore) Get(key string) (string, bool)       { return t.m[key], true }
+func (t *testStore) Set(key, value string) error         { t.m[key] = value; return nil }
+func (t *testStore) Delete(key string) error             { delete(t.m, key); return nil }
+func (t *testStore) Join(nodeID, addr string) error      { return nil }
+func (t *testStore) IsLeader() bool                      { return true }
+func (t *testStore) NodeState() string                   { return "" }
 
 func doGet(t *testing.T, url, key string) string {
 	resp, err := http.Get(fmt.Sprintf("%s/key/%s", url, key))

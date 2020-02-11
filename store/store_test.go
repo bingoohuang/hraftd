@@ -52,11 +52,7 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 
 	// Wait for committed log entry to be applied.
 	time.Sleep(500 * time.Millisecond)
-	value, _, err := s.Get("foo")
-	if err != nil {
-		t.Fatalf("failed to get key: %s", err.Error())
-	}
-
+	value, _ := s.Get("foo")
 	if value != "bar" {
 		t.Fatalf("key has wrong value: %s", value)
 	}
@@ -67,11 +63,7 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 
 	// Wait for committed log entry to be applied.
 	time.Sleep(500 * time.Millisecond)
-	value, _, err = s.Get("foo")
-
-	if err != nil {
-		t.Fatalf("failed to get key: %s", err.Error())
-	}
+	value, _ = s.Get("foo")
 
 	if value != "" {
 		t.Fatalf("key has wrong value: %s", value)
@@ -105,11 +97,7 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 
 	// Wait for committed log entry to be applied.
 	time.Sleep(500 * time.Millisecond)
-	value, _, err := s.Get("foo")
-	if err != nil {
-		t.Fatalf("failed to get key: %s", err.Error())
-	}
-
+	value, _ := s.Get("foo")
 	if value != "bar" {
 		t.Fatalf("key has wrong value: %s", value)
 	}
@@ -120,10 +108,7 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 
 	// Wait for committed log entry to be applied.
 	time.Sleep(500 * time.Millisecond)
-	value, _, err = s.Get("foo")
-	if err != nil {
-		t.Fatalf("failed to get key: %s", err.Error())
-	}
+	value, _ = s.Get("foo")
 
 	if value != "" {
 		t.Fatalf("key has wrong value: %s", value)

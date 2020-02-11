@@ -106,7 +106,11 @@ func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		if key, ok := getKey(r, w); ok {
-			s.doGet(key, w)
+			if v, ok := s.Store.Get(key); ok {
+				util.WriteAsJSON(map[string]string{key: v}, w)
+			} else {
+				w.WriteHeader(http.StatusNotFound)
+			}
 		}
 	case "POST":
 		s.tryForwardToLeader(s.doPost, w, r)
@@ -149,22 +153,6 @@ func (s *Service) doPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) doGet(k string, w http.ResponseWriter) {
-	v, ok, err := s.Store.Get(k)
-
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	util.WriteAsJSON(map[string]string{k: v}, w)
-}
-
 // ServeHTTPFn defines ServeHTTP function prototype.
 type ServeHTTPFn func(w http.ResponseWriter, r *http.Request)
 
@@ -196,41 +184,40 @@ func (s *Service) tryForwardToLeader(f ServeHTTPFn, w http.ResponseWriter, r *ht
 func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) {
 	leader, err := s.Store.LeadServer()
 	if err != nil {
-		log.Printf("failed to get raft state: %v\n", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("failed to get raft leader: %v\n", err)
+		util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
 
 		return
 	}
 
 	addr := leader.NodeID.HTTPAddr()
 	log.Printf("forward %s to leader %s\n", r.URL.String(), addr)
+
 	p := util.ReverseProxy(r.URL.Path, addr, r.URL.Path, 10*time.Second) // nolint gomnd
 	p.ServeHTTP(w, r)
 }
 
 func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-
-	switch {
-	case path == "/raft/health":
+	switch r.URL.Path {
+	case "/raft/health":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			util.WriteAsText("OK", w)
 		}, w, r)
-	case path == "/raft/join":
+	case "/raft/join":
 		CheckMethod("POST", s.tryForwardToLeaderFn(s.handleJoin), w, r)
-	case path == "/raft/stats":
+	case "/raft/stats":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			util.WriteAsJSON(s.Store.RaftStats(), w)
 		}, w, r)
-	case path == "/raft/state":
+	case "/raft/state":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			util.WriteAsJSON(model.Rsp{OK: true, Msg: s.Store.NodeState()}, w)
 		}, w, r)
-	case path == "/raft/cluster":
+	case "/raft/cluster":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			if servers, err := s.Store.Cluster(); err != nil {
 				log.Printf("failed to get raft state: %v\n", err)
-				w.WriteHeader(http.StatusInternalServerError)
+				util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
 			} else {
 				util.WriteAsJSON(servers, w)
 			}

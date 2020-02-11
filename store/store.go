@@ -213,7 +213,7 @@ func (s *Store) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotSt
 }
 
 // Get returns the value for the given key.
-func (s *Store) Get(key string) (v string, ok bool, err error) {
+func (s *Store) Get(key string) (v string, ok bool) {
 	s.lockApplyOp(func() interface{} { v, ok = s.m[key]; return nil })
 
 	return
