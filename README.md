@@ -70,7 +70,7 @@ This tells each new node to join the existing node. Once joined, each node now k
 curl localhost:11000/key/user1 localhost:11001/key/user1 localhost:11002/key/user1
 ```
 
-Furthermore you can add a second key:
+Furthermore, you can add a second key:
 
 ```bash
 curl -XPOST localhost:11000/key -d '{"user2": "robin"}'
@@ -81,48 +81,22 @@ Confirm that the new key has been set like so:
 ```bash
 $ curl localhost:11000/key/user2 localhost:11001/key/user2 localhost:11002/key/user2
 {"user2":"robin"}{"user2":"robin"}{"user2":"robin"}
-```
-
-```bash
-curl localhost:11000/raft/stats localhost:11001/raft/stats localhost:11002/raft/stats |jq
+$ curl localhost:11000/raft/stats |jq
 ```
 
 output:
 
 ```json
 {
-  "applied_index": "10",
-  "commit_index": "10",
+  "applied_index": "7",
+  "commit_index": "7",
   "fsm_pending": "0",
-  "last_contact": "0",
-  "last_log_index": "10",
-  "last_log_term": "13",
+  "last_contact": "3.685538ms",
+  "last_log_index": "7",
+  "last_log_term": "8",
   "last_snapshot_index": "0",
   "last_snapshot_term": "0",
-  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",
-  "latest_configuration_index": "0",
-  "num_peers": "2",
-  "protocol_version": "3",
-  "protocol_version_max": "3",
-  "protocol_version_min": "0",
-  "snapshot_version_max": "1",
-  "snapshot_version_min": "0",
-  "state": "Leader",
-  "term": "13"
-}
-```
-
-```json
-{
-  "applied_index": "10",
-  "commit_index": "10",
-  "fsm_pending": "0",
-  "last_contact": "36.160584ms",
-  "last_log_index": "10",
-  "last_log_term": "13",
-  "last_snapshot_index": "0",
-  "last_snapshot_term": "0",
-  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",
+  "latest_configuration": "[{Suffrage:Voter ID::11000,:12000 Address::12000} {Suffrage:Voter ID::11001,:12001 Address::12001} {Suffrage:Voter ID::11002,:12002 Address::12002}]",
   "latest_configuration_index": "0",
   "num_peers": "2",
   "protocol_version": "3",
@@ -131,34 +105,12 @@ output:
   "snapshot_version_max": "1",
   "snapshot_version_min": "0",
   "state": "Follower",
-  "term": "13"
+  "term": "8"
 }
 ```
 
-```json
-{
-  "applied_index": "10",
-  "commit_index": "10",
-  "fsm_pending": "0",
-  "last_contact": "15.108323ms",
-  "last_log_index": "10",
-  "last_log_term": "13",
-  "last_snapshot_index": "0",
-  "last_snapshot_term": "0",
-  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",
-  "latest_configuration_index": "0",
-  "num_peers": "2",
-  "protocol_version": "3",
-  "protocol_version_max": "3",
-  "protocol_version_min": "0",
-  "snapshot_version_max": "1",
-  "snapshot_version_min": "0",
-  "state": "Follower",
-  "term": "13"
-}
-```
 
-`curl localhost:11000/raft/state localhost:11001/raft/state localhost:11002/raft/state | jq`
+`curl localhost:11000/raft/servers | jq`
 
 output:
 
@@ -166,93 +118,29 @@ output:
 {
   "current": {
     "address": ":12000",
-    "nodeID": "192.168.10.101:12000",
+    "nodeID": ":11000,:12000",
     "state": "Follower"
   },
   "leader": {
     "address": ":12002",
-    "nodeID": "192.168.10.101:12002",
+    "nodeID": ":11002,:12002",
     "state": "Leader"
   },
   "servers": [
     {
       "address": ":12000",
-      "nodeID": "192.168.10.101:12000",
+      "nodeID": ":11000,:12000",
+      "state": "Follower"
+    },
+    {
+      "address": ":12001",
+      "nodeID": ":11001,:12001",
       "state": "Follower"
     },
     {
       "address": ":12002",
-      "nodeID": "192.168.10.101:12002",
+      "nodeID": ":11002,:12002",
       "state": "Leader"
-    },
-    {
-      "address": ":12001",
-      "nodeID": "192.168.10.101:12001",
-      "state": ""
-    }
-  ]
-}
-```
-
-```json
-{
-  "current": {
-    "address": ":12001",
-    "nodeID": "192.168.10.101:12001",
-    "state": "Follower"
-  },
-  "leader": {
-    "address": ":12002",
-    "nodeID": "192.168.10.101:12002",
-    "state": "Leader"
-  },
-  "servers": [
-    {
-      "address": ":12000",
-      "nodeID": "192.168.10.101:12000",
-      "state": ""
-    },
-    {
-      "address": ":12002",
-      "nodeID": "192.168.10.101:12002",
-      "state": "Leader"
-    },
-    {
-      "address": ":12001",
-      "nodeID": "192.168.10.101:12001",
-      "state": "Follower"
-    }
-  ]
-}
-```
-
-```json
-{
-  "current": {
-    "address": ":12002",
-    "nodeID": "192.168.10.101:12002",
-    "state": "Leader"
-  },
-  "leader": {
-    "address": ":12002",
-    "nodeID": "192.168.10.101:12002",
-    "state": "Leader"
-  },
-  "servers": [
-    {
-      "address": ":12000",
-      "nodeID": "192.168.10.101:12000",
-      "state": ""
-    },
-    {
-      "address": ":12002",
-      "nodeID": "192.168.10.101:12002",
-      "state": "Leader"
-    },
-    {
-      "address": ":12001",
-      "nodeID": "192.168.10.101:12001",
-      "state": ""
     }
   ]
 }
@@ -265,30 +153,16 @@ What follows is a detailed example of running a multi-node hraftd cluster.
 Imagine you have 3 machines, with the IP addresses 192.168.0.1, 192.168.0.2, and 192.168.0.3 respectively.
 Let's also assume that each machine can reach the other two machines using these addresses.
 
-You should start the first node (eg 192.168.0.1) like so:
+You should start the nodes (eg at 192.168.0.1,192.168.0.2,192.168.0.3) like so:
 
 ```
-hraftd -haddr :11000 -raddr :12000 -rjoin 192.168.0.1:11000
-```
-
-This way the node is listening on an address reachable from the other nodes. This node will start up and become leader of a single-node cluster.
-
-Next, start the second node (eg 192.168.0.2) as follows:
-
-```
-hraftd -haddr :11000 -raddr :12000 -rjoin 192.168.0.1:11000
-```
-
-Finally, start the third node (eg 192.168.0.3) as follows:
-
-```
-hraftd -haddr :11000 -raddr :12000 -rjoin 192.168.0.1:11000
+hraftd -haddr :11000 -rjoin 192.168.0.1:11000
 ```
 
 Specifically using ports 11000 and 12000 is not required. You can use other ports if you wish.
 
 Note how each node listens on its own address, but joins to the address of the leader node.
-The second and third nodes will start, join the with leader at `192.168.0.2:11000`, and a 3-node cluster will be formed.
+The second and third nodes will start, join the leader at `192.168.0.2:11000`, and a 3-node cluster will be formed.
 
 ```bash
 $ lsof -i tcp:11000

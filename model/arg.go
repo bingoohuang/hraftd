@@ -97,6 +97,12 @@ func (a BindAddr) URL(path string) string {
 // URL returns the HTTP access URL with relative path
 func (r NodeID) URL(relativePath string) string { return BindAddr(r.HTTPAddr()).URL(relativePath) }
 
+// URLRaftState is http://httpAddr/raft/join
+func (r NodeID) URLRaftState() string { return r.URL("/raft/state") }
+
+// URLRaftJoin is http://httpAddr/raft/join
+func (a BindAddr) URLRaftJoin() string { return a.URL("/raft/join") }
+
 // HTTPAddr returns the HTTP bind address in the NodeID
 func (r NodeID) HTTPAddr() string { return strings.SplitN(string(r), ",", -1)[0] }
 
@@ -124,7 +130,7 @@ func (a *Arg) parseBootstrap() { a.Bootstrap = a.JoinAddr == "" || a.JoinAddr ==
 // Join joins the current not to raft cluster
 func (a *Arg) Join() error {
 	b, _ := json.Marshal(JoinRequest{RemoteAddr: a.RaftAddr, NodeID: a.NodeID})
-	joinURL := BindAddr(a.JoinAddr).URL("/raft/join")
+	joinURL := BindAddr(a.JoinAddr).URLRaftJoin()
 	log.Printf("joinURL %s\n", joinURL)
 
 	for i := 0; i < 10; i++ {

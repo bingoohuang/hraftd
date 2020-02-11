@@ -112,7 +112,7 @@ func (s *Store) RaftServers() (model.RaftCluster, error) {
 
 func (s *Store) getNodeState(peer model.Peer) *model.Rsp {
 	r := &model.Rsp{}
-	u := peer.NodeID.URL("/raft/state")
+	u := peer.NodeID.URLRaftState()
 	rsp, err := util.GetJSON(u, r)
 	s.logger.Printf("invoke get node state %s rsp %v\n", u, rsp)
 
