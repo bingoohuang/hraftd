@@ -30,6 +30,15 @@ import (
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
+	leaderWaitDelay     = 100 * time.Millisecond
+	appliedWaitDelay    = 100 * time.Millisecond
+)
+
+var (
+	// ErrNotLeader is returned when a node attempts to execute a leader-only operation.
+	ErrNotLeader = errors.New("not leader")
+	// ErrOpenTimeout is returned when the Store does not apply its initial logs within the specified time.
+	ErrOpenTimeout = errors.New("timeout waiting for initial logs application")
 )
 
 // Store is a simple key-value store, where all changes are made via Raft consensus.
@@ -161,10 +170,6 @@ func (s *Store) Get(key string) (v string, ok bool, err error) {
 	return
 }
 
-var (
-	ErrNotLeader = errors.New("not leader")
-)
-
 // IsLeader tells the current node is raft leader or not.
 func (s *Store) IsLeader() bool { return s.raft.State() == raft.Leader }
 
@@ -230,6 +235,67 @@ func (s *Store) Join(nodeID, addr string) error {
 	}
 
 	return nil
+}
+
+// LeaderAddr returns the address of the current leader. Returns a
+// blank string if there is no leader.
+func (s *Store) LeaderAddr() string { return string(s.raft.Leader()) }
+
+// WaitForLeader blocks until a leader is detected, or the timeout expires.
+func (s *Store) WaitForLeader(timeout time.Duration) (string, error) {
+	tck := time.NewTicker(leaderWaitDelay)
+	tmr := time.NewTimer(timeout)
+
+	defer tck.Stop()
+	defer tmr.Stop()
+
+	for {
+		select {
+		case <-tck.C:
+			if l := s.LeaderAddr(); l != "" {
+				return l, nil
+			}
+		case <-tmr.C:
+			return "", fmt.Errorf("timeout expired")
+		}
+	}
+}
+
+// WaitForApplied waits for all Raft log entries to to be applied to the
+// underlying database.
+func (s *Store) WaitForApplied(timeout time.Duration) error {
+	if timeout == 0 {
+		return nil
+	}
+
+	s.logger.Printf("waiting for up to %s for application of initial logs", timeout)
+
+	if err := s.WaitForAppliedIndex(s.raft.LastIndex(), timeout); err != nil {
+		return ErrOpenTimeout
+	}
+
+	return nil
+}
+
+// WaitForAppliedIndex blocks until a given log index has been applied,
+// or the timeout expires.
+func (s *Store) WaitForAppliedIndex(idx uint64, timeout time.Duration) error {
+	tck := time.NewTicker(appliedWaitDelay)
+	tmr := time.NewTimer(timeout)
+
+	defer tck.Stop()
+	defer tmr.Stop()
+
+	for {
+		select {
+		case <-tck.C:
+			if s.raft.AppliedIndex() >= idx {
+				return nil
+			}
+		case <-tmr.C:
+			return fmt.Errorf("timeout expired")
+		}
+	}
 }
 
 // Apply applies a Raft log entry to the key-value store.
@@ -303,14 +369,14 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 
 func (f *fsmSnapshot) Release() {}
 
-func (s *Store) walkRaftServers(f func(srv raft.Server) error) error {
-	configFuture := s.raft.GetConfiguration()
-	if err := configFuture.Error(); err != nil {
+func (s *Store) walkRaftServers(fn func(srv raft.Server) error) error {
+	f := s.raft.GetConfiguration()
+	if err := f.Error(); err != nil {
 		return fmt.Errorf("failed to get raft configuration: %w", err)
 	}
 
-	for _, srv := range configFuture.Configuration().Servers {
-		if err := f(srv); err != nil {
+	for _, srv := range f.Configuration().Servers {
+		if err := fn(srv); err != nil {
 			return fmt.Errorf("failed to invoke walk fn: %w", err)
 		}
 	}

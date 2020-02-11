@@ -23,7 +23,7 @@ func main() {
 	argJSON, _ := json.Marshal(arg)
 	log.Printf("Args:%s\n", argJSON)
 
-	arg.ApplyInterceptor = func(l *raft.Log, cmd model.Command) bool {
+	arg.ApplyInterceptor = func(_ *raft.Log, cmd model.Command) bool {
 		fmt.Printf("received command %+v\n", cmd)
 
 		return false

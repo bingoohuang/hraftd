@@ -113,22 +113,24 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.HasPrefix(path, "/key"):
 		s.handleKeyRequest(w, r)
+	case path == "/raft/health":
+		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
+			util.WriteAsText("OK", w)
+		}, w, r)
 	case path == "/raft/join":
 		CheckMethod("POST", s.handleJoin, w, r)
 	case path == "/raft/stats":
-		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
+		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			util.WriteAsJSON(s.Store.RaftStats(), w)
 		}, w, r)
 	case path == "/raft/state":
-		CheckMethod("GET", func(w http.ResponseWriter, r *http.Request) {
-			status, err := s.Store.State()
-			if err != nil {
+		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
+			if status, err := s.Store.State(); err != nil {
 				log.Printf("failed to get raft state: %v\n", err)
 				w.WriteHeader(http.StatusInternalServerError)
-				return
+			} else {
+				util.WriteAsJSON(status, w)
 			}
-
-			util.WriteAsJSON(status, w)
 		}, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)

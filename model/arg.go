@@ -14,9 +14,11 @@ type Arg struct {
 
 	InMem    bool
 	RaftAddr string
+	RaftAdv  string
 	RaftDir  string
 	NodeID   string
 	HTTPAddr string
+	HTTPAdv  string
 	JoinAddr string
 
 	ApplyInterceptor ApplyInterceptor `json:"-"`
@@ -27,8 +29,10 @@ func DefineFlags() *Arg {
 	var app Arg
 
 	flag.BoolVar(&app.InMem, "rmem", false, "Use in-memory storage for Raft")
-	flag.StringVar(&app.HTTPAddr, "haddr", ":11000", "HTTP bind address")
-	flag.StringVar(&app.RaftAddr, "raddr", ":12000", "Raft bind address")
+	flag.StringVar(&app.HTTPAddr, "haddr", ":11000", "HTTP server bind address")
+	flag.StringVar(&app.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
+	flag.StringVar(&app.RaftAddr, "raddr", ":12000", "Raft communication bind address")
+	flag.StringVar(&app.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
 	flag.StringVar(&app.RaftDir, "rdir", "", "Raft data directory, default to ~/.raftdir/{id}")
 	flag.StringVar(&app.JoinAddr, "rjoin", "", "Set raft cluster join address, if any")
 

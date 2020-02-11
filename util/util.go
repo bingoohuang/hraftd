@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
 )
 
 // CloneMap clones a map
@@ -17,8 +18,16 @@ func CloneMap(m map[string]string) map[string]string {
 	return o
 }
 
+// WriteAsText writes s as text/plain
+func WriteAsText(s string, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(s))
+}
+
 // WriteAsJSON writes m as JSON
-func WriteAsJSON(m interface{}, w io.Writer) {
+func WriteAsJSON(m interface{}, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
 	b, _ := json.Marshal(m)
 	_, _ = w.Write(b)
 }

@@ -1,27 +1,27 @@
 # hraftd
 
-hraftd is a reference example use of the Hashicorp Raft. 
+hraftd is a reference example use of the Hashicorp Raft. Read more about [raft brief](RaftBrief.md)
 
 This project is rewritten from [otoolep/hraftd](https://github.com/otoolep/hraftd) and this [blog post](http://www.philipotoole.com/building-a-distributed-key-value-store-using-raft/)..
 
-[Hashicorp](https://hashicorp.com/) provide a [nice implementation](https://github.com/hashicorp/raft) 
-of the [Raft](https://raft.github.io/) consensus protocol, 
+[Hashicorp](https://hashicorp.com/) provide a [nice implementation](https://github.com/hashicorp/raft)
+of the [Raft](https://raft.github.io/) consensus protocol,
 and it’s at the heart of [InfluxDB](http://www.influxdb.com/), [consul](http://www.consul.io/)
-(amongst [other systems](https://godoc.org/github.com/hashicorp/raft?importers)). 
+(amongst [other systems](https://godoc.org/github.com/hashicorp/raft?importers)).
 
 ![image](https://user-images.githubusercontent.com/1940588/73939073-a0485780-4923-11ea-9b61-73fd344660bd.png)
 
-Raft is a _distributed consensus protocol_, meaning its purpose is to ensure 
-that a set of nodes -- a cluster -- agree on the state of some arbitrary state machine, 
-even when nodes are vulnerable to failure and network partitions. 
+Raft is a _distributed consensus protocol_, meaning its purpose is to ensure
+that a set of nodes -- a cluster -- agree on the state of some arbitrary state machine,
+even when nodes are vulnerable to failure and network partitions.
 Distributed consensus is a fundamental concept when it comes to building fault-tolerant systems.
 
-A simple example system like hraftd makes it easy to study the Raft consensus protocol in general, 
+A simple example system like hraftd makes it easy to study the Raft consensus protocol in general,
 and Hashicorp's Raft implementation in particular. It can be run on Linux, OSX, and Windows.
 
 ## Reading and writing keys
 
-The reference implementation is a very simple in-memory key-value store. 
+The reference implementation is a very simple in-memory key-value store.
 You can set a key by sending a request to the HTTP bind address (which defaults to `localhost:11000`):
 
 ```bash
@@ -61,7 +61,7 @@ hraftd -haddr :11001 -raddr :12001 -rjoin :11000
 hraftd -haddr :11002 -raddr :12002 -rjoin :11000
 ```
 
-This example shows each hraftd node running on the same host, so each node must listen on different ports. 
+This example shows each hraftd node running on the same host, so each node must listen on different ports.
 This would not be necessary if each node ran on a different host.
 
 This tells each new node to join the existing node. Once joined, each node now knows about the key:
@@ -99,7 +99,8 @@ output:
   "last_log_term": "13",
   "last_snapshot_index": "0",
   "last_snapshot_term": "0",
-  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",  "latest_configuration_index": "0",
+  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",
+  "latest_configuration_index": "0",
   "num_peers": "2",
   "protocol_version": "3",
   "protocol_version_max": "3",
@@ -121,7 +122,8 @@ output:
   "last_log_term": "13",
   "last_snapshot_index": "0",
   "last_snapshot_term": "0",
-  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",  "latest_configuration_index": "0",
+  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",
+  "latest_configuration_index": "0",
   "num_peers": "2",
   "protocol_version": "3",
   "protocol_version_max": "3",
@@ -143,7 +145,8 @@ output:
   "last_log_term": "13",
   "last_snapshot_index": "0",
   "last_snapshot_term": "0",
-  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",  "latest_configuration_index": "0",
+  "latest_configuration": "[{Suffrage:Voter ID:192.168.10.101:12000 Address::12000} {Suffrage:Voter ID:192.168.10.101:12001 Address::12001} {Suffrage:Voter ID:192.168.10.101:12002 Address::12002}]",
+  "latest_configuration_index": "0",
   "num_peers": "2",
   "protocol_version": "3",
   "protocol_version_max": "3",
@@ -259,7 +262,7 @@ output:
 
 What follows is a detailed example of running a multi-node hraftd cluster.
 
-Imagine you have 3 machines, with the IP addresses 192.168.0.1, 192.168.0.2, and 192.168.0.3 respectively. 
+Imagine you have 3 machines, with the IP addresses 192.168.0.1, 192.168.0.2, and 192.168.0.3 respectively.
 Let's also assume that each machine can reach the other two machines using these addresses.
 
 You should start the first node (eg 192.168.0.1) like so:
@@ -284,7 +287,7 @@ hraftd -haddr :11000 -raddr :12000 -rjoin 192.168.0.1:11000
 
 Specifically using ports 11000 and 12000 is not required. You can use other ports if you wish.
 
-Note how each node listens on its own address, but joins to the address of the leader node. 
+Note how each node listens on its own address, but joins to the address of the leader node.
 The second and third nodes will start, join the with leader at `192.168.0.2:11000`, and a 3-node cluster will be formed.
 
 ```bash
@@ -302,38 +305,37 @@ $ ps -ef|grep raft
 
 #### Stale reads
 
-Because any node will answer a GET request, and nodes may "fall behind" updates, stale reads are possible. Again, 
+Because any node will answer a GET request, and nodes may "fall behind" updates, stale reads are possible. Again,
 hraftd is a simple program, for the purpose of demonstrating a distributed key-value store.
-If you are particularly interested in learning more about issue, you should check out [rqlite](https://github.com/rqlite/rqlite). 
-rqlite allows the client to control [read consistency](https://github.com/rqlite/rqlite/blob/master/DOC/CONSISTENCY.md), 
+If you are particularly interested in learning more about issue, you should check out [rqlite](https://github.com/rqlite/rqlite).
+rqlite allows the client to control [read consistency](https://github.com/rqlite/rqlite/blob/master/DOC/CONSISTENCY.md),
 allowing the client to trade off read-responsiveness and correctness.
 
 Read-consistency support could be ported to hraftd if necessary.
 
 ### Tolerating failure
 
-Kill the leader process and watch one of the other nodes be elected leader. 
-The keys are still available for query on the other nodes, and you can set keys on the new leader. 
+Kill the leader process and watch one of the other nodes be elected leader.
+The keys are still available for query on the other nodes, and you can set keys on the new leader.
 Furthermore, when the first node is restarted, it will rejoin the cluster and learn about any updates that occurred while it was down.
 
-A 3-node cluster can tolerate the failure of a single node, but a 5-node cluster can tolerate the failure of two nodes. 
-But 5-node clusters require that the leader contact a larger number of nodes before any change 
+A 3-node cluster can tolerate the failure of a single node, but a 5-node cluster can tolerate the failure of two nodes.
+But 5-node clusters require that the leader contact a larger number of nodes before any change
 e.g. setting a key's value, can be considered committed.
 
 ### Leader-forwarding
 
-Automatically forwarding requests to set keys to the current leader is not implemented. 
+Automatically forwarding requests to set keys to the current leader is not implemented.
 The client must always send requests to change a key to the leader or an error will be returned.
 
 ## Production use of Raft
 
-For a production-grade example of using Hashicorp's Raft implementation, 
+For a production-grade example of using Hashicorp's Raft implementation,
 to replicate a SQLite database, check out [rqlite](https://github.com/rqlite/rqlite).
-
 
 ## Resources
 
-1. [基于hashicorp/raft的分布式一致性实战教学](https://zhuanlan.zhihu.com/p/58048906)
-1. [raft可视化](http://thesecretlivesofdata.com/raft/)
-1. [Leto - 基于raft快速实现一个key-value存储系统](https://xiking.win/2018/07/30/implement-key-value-store-using-raft/)
+1. [基于 hashicorp/raft 的分布式一致性实战教学](https://zhuanlan.zhihu.com/p/58048906)
+1. [raft 可视化](http://thesecretlivesofdata.com/raft/)
+1. [Leto - 基于 raft 快速实现一个 key-value 存储系统](https://xiking.win/2018/07/30/implement-key-value-store-using-raft/)
 1. [使用 Raft 实现 VIP 功能](https://zdyxry.github.io/2020/01/17/%E4%BD%BF%E7%94%A8-Raft-%E5%AE%9E%E7%8E%B0-VIP-%E5%8A%9F%E8%83%BD/)
