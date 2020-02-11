@@ -110,7 +110,7 @@ output:
 ```
 
 
-`curl localhost:11000/raft/servers | jq`
+`curl localhost:11000/raft/cluster | jq`
 
 output:
 
