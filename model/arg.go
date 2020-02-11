@@ -2,10 +2,13 @@ package model
 
 import (
 	"flag"
+	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"strconv"
 )
 
 // Arg Command line parameters
@@ -31,7 +34,7 @@ func DefineFlags() *Arg {
 	flag.BoolVar(&app.InMem, "rmem", false, "Use in-memory storage for Raft")
 	flag.StringVar(&app.HTTPAddr, "haddr", ":11000", "HTTP server bind address")
 	flag.StringVar(&app.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
-	flag.StringVar(&app.RaftAddr, "raddr", ":12000", "Raft communication bind address")
+	flag.StringVar(&app.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
 	flag.StringVar(&app.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
 	flag.StringVar(&app.RaftDir, "rdir", "", "Raft data directory, default to ~/.raftdir/{id}")
 	flag.StringVar(&app.JoinAddr, "rjoin", "", "Set raft cluster join address, if any")
@@ -48,9 +51,23 @@ func WaitInterrupt() {
 
 // FixRaftArg fixes the arg for some defaults.
 func FixRaftArg(arg *Arg) {
+	fixAddr(arg)
 	parseFlagRafNodeID(arg)
 	parseFlagRaftDir(arg)
 	parseBootstrap(arg)
+}
+
+func fixAddr(app *Arg) {
+	if app.RaftAddr == "" {
+		host, port, err := net.SplitHostPort(app.HTTPAddr)
+		if err != nil {
+			panic(err)
+		}
+
+		por, _ := strconv.Atoi(port)
+
+		app.RaftAddr = fmt.Sprintf("%s:%d", host, por+1000) // nolint gomnd
+	}
 }
 
 func parseFlagRafNodeID(app *Arg) {

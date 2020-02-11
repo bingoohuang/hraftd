@@ -1,6 +1,6 @@
 # hraftd
 
-hraftd is a reference example use of the Hashicorp Raft. Read more about [raft brief](RaftBrief.md)
+hraftd is a reference example use of the Hashicorp Raft. Read more about [raft brief](RaftBrief.md).
 
 This project is rewritten from [otoolep/hraftd](https://github.com/otoolep/hraftd) and this [blog post](http://www.philipotoole.com/building-a-distributed-key-value-store-using-raft/)..
 

@@ -71,7 +71,14 @@ func (s *Service) Start() error {
 // Join joins the current not to raft cluster
 func Join(joinAddr, raftAddr, nodeID string) error {
 	b, _ := json.Marshal(model.JoinRequest{RemoteAddr: raftAddr, NodeID: nodeID})
-	joinURL := fmt.Sprintf("http://%s/raft/join", joinAddr)
+	host, port, _ := net.SplitHostPort(joinAddr)
+
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
+	joinURL := fmt.Sprintf("http://%s:%s/raft/join", host, port)
+	log.Printf("joinURL %s\n", joinURL)
 
 	for i := 0; i < 10; i++ {
 		if i > 0 {
