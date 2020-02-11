@@ -1,10 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+
+	"github.com/bingoohuang/hraftd/util"
 
 	"github.com/hashicorp/raft"
 
@@ -20,8 +21,7 @@ func main() {
 
 	arg.FixRaftArg()
 
-	argJSON, _ := json.Marshal(arg)
-	log.Printf("Args:%s\n", argJSON)
+	log.Printf("Args:%s\n", util.Hjson(arg))
 
 	arg.ApplyInterceptor = func(_ *raft.Log, cmd model.Command) bool {
 		fmt.Printf("received command %+v\n", cmd)

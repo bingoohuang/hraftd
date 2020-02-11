@@ -17,13 +17,17 @@ func GetJSON(addr string, v interface{}) (string, error) {
 }
 
 // PostJSON posts body as JSON and parse response as JSON
-func PostJSON(addr string, body []byte, v interface{}) (string, error) {
-	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(body)) // nolint gosec
+func PostJSON(addr string, body, v interface{}) (int, string, error) {
+	b, _ := json.Marshal(body)
+
+	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(b)) // nolint gosec
 	if err != nil {
-		return "", err
+		return 0, "", err
 	}
 
-	return parseRSP(resp, v)
+	rsp, err := parseRSP(resp, v)
+
+	return resp.StatusCode, rsp, err
 }
 
 func parseRSP(resp *http.Response, v interface{}) (string, error) {

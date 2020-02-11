@@ -16,13 +16,9 @@ func Test_StoreOpen(t *testing.T) {
 
 	// nolint goconst
 	s := New(&model.Arg{
-		InMem:     false,
-		RaftAddr:  "127.0.0.1:0",
-		RaftDir:   tmpDir,
-		NodeID:    "node0",
-		HTTPAddr:  "",
-		JoinAddr:  "",
-		Bootstrap: false,
+		RaftAddr: "127.0.0.1:0",
+		RaftDir:  tmpDir,
+		NodeID:   "node0",
 	})
 
 	if err := s.Open(); err != nil {
@@ -37,12 +33,9 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	s := New(&model.Arg{
-		InMem:     false,
 		RaftAddr:  "127.0.0.1:0",
 		RaftDir:   tmpDir,
 		NodeID:    "node0",
-		HTTPAddr:  "",
-		JoinAddr:  "",
 		Bootstrap: true,
 	})
 
@@ -93,12 +86,9 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	s := New(&model.Arg{
-		InMem:     false,
 		RaftAddr:  "127.0.0.1:0",
 		RaftDir:   tmpDir,
 		NodeID:    "node0",
-		HTTPAddr:  "",
-		JoinAddr:  "",
 		Bootstrap: true,
 	})
 

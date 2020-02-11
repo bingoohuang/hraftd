@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
+	"strings"
+
+	hjson "github.com/hjson/hjson-go"
 )
 
 // CloneMap clones a map
@@ -45,4 +49,20 @@ func ReadBytes(object io.ReadCloser) []byte {
 	_, _ = buf.ReadFrom(object)
 
 	return buf.Bytes()
+}
+
+// PathExists returns true if the given path exists.
+func PathExists(p string) bool {
+	if _, err := os.Lstat(p); err != nil && os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
+
+// Hjson returns HJSON presentation of v
+func Hjson(v interface{}) string {
+	hj, _ := hjson.Marshal(v)
+
+	return strings.ReplaceAll(string(hj), "\n", "")
 }

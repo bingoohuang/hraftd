@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -21,16 +20,17 @@ import (
 type Arg struct {
 	Bootstrap bool
 
-	InMem    bool
-	RaftAddr string
-	RaftAdv  string
-	RaftDir  string
-	NodeID   NodeID
-	HTTPAddr string
-	HTTPAdv  string
-	JoinAddr string
+	InMem     bool
+	RaftAddr  string
+	RaftAdv   string
+	RaftDir   string
+	NodeID    NodeID
+	HTTPAddr  string
+	HTTPAdv   string
+	JoinAddrs string
 
 	ApplyInterceptor ApplyInterceptor `json:"-"`
+	JoinAddrSlice    []string
 }
 
 // DefineFlags define raft args
@@ -43,7 +43,7 @@ func DefineFlags() *Arg {
 	flag.StringVar(&app.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
 	flag.StringVar(&app.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
 	flag.StringVar(&app.RaftDir, "rdir", "", "Raft data directory, default to ~/.raftdir/{id}")
-	flag.StringVar(&app.JoinAddr, "rjoin", "", "Set raft cluster join address, if any")
+	flag.StringVar(&app.JoinAddrs, "rjoin", "", "Set raft cluster join addresses separated by comma, if any")
 
 	return &app
 }
@@ -125,13 +125,32 @@ func (a *Arg) parseFlagRaftDir() {
 	_ = os.MkdirAll(a.RaftDir, 0700)
 }
 
-func (a *Arg) parseBootstrap() { a.Bootstrap = a.JoinAddr == "" || a.JoinAddr == a.HTTPAddr }
+func (a *Arg) parseBootstrap() {
+	a.JoinAddrSlice = make([]string, 0)
+
+	if a.JoinAddrs == "" {
+		a.Bootstrap = true
+
+		return
+	}
+
+	for _, addr := range strings.Split(a.JoinAddrs, ",") {
+		if addr != "" {
+			a.JoinAddrSlice = append(a.JoinAddrSlice, addr)
+		}
+	}
+
+	if len(a.JoinAddrSlice) == 0 || a.JoinAddrSlice[0] == a.HTTPAddr {
+		a.Bootstrap = true
+	}
+}
 
 // Join joins the current not to raft cluster
 func (a *Arg) Join() error {
-	b, _ := json.Marshal(JoinRequest{RemoteAddr: a.RaftAddr, NodeID: a.NodeID})
-	joinURL := BindAddr(a.JoinAddr).URLRaftJoin()
-	log.Printf("joinURL %s\n", joinURL)
+	addrLen := len(a.JoinAddrSlice)
+	if addrLen == 0 {
+		return nil
+	}
 
 	for i := 0; i < 10; i++ {
 		if i > 0 {
@@ -139,12 +158,15 @@ func (a *Arg) Join() error {
 			time.Sleep(10 * time.Second) // nolint gomnd
 		}
 
+		joinURL := BindAddr(a.JoinAddrSlice[i%addrLen]).URLRaftJoin()
+		log.Printf("joinURL %s\n", joinURL)
+
 		r := &Rsp{}
-		resp, err := util.PostJSON(joinURL, b, r)
-		log.Printf("join response %s\n", resp)
+		stateCode, resp, err := util.PostJSON(joinURL, JoinRequest{Addr: a.RaftAddr, NodeID: a.NodeID}, r)
+		log.Printf("join response %d %s\n", stateCode, resp)
 
 		if err != nil {
-			log.Printf("joined error %v\n", err)
+			log.Printf("joined error %s\n", err.Error())
 
 			continue
 		}
@@ -154,5 +176,5 @@ func (a *Arg) Join() error {
 		}
 	}
 
-	return fmt.Errorf("failed to Join %s", joinURL)
+	return fmt.Errorf("failed to join %s", a.JoinAddrs)
 }

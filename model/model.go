@@ -18,8 +18,8 @@ type RaftCluster struct {
 
 // JoinRequest defines the Raft join request
 type JoinRequest struct {
-	RemoteAddr string `json:"addr"`
-	NodeID     NodeID `json:"id"`
+	Addr   string `json:"addr"`
+	NodeID NodeID `json:"id"`
 }
 
 // Rsp defines the Raft join response
@@ -49,8 +49,11 @@ type Store interface {
 	// RaftStats returns the raft stats
 	RaftStats() map[string]string
 
-	// RaftServers returns the raft cluster servers
-	RaftServers() (RaftCluster, error)
+	// Cluster returns the raft cluster servers
+	Cluster() (RaftCluster, error)
+
+	// LeadServer returns the raft lead server
+	LeadServer() (Peer, error)
 
 	// LeaderCh is used to get a channel which delivers signals on
 	// acquiring or losing leadership. It sends true if we become

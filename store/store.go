@@ -74,14 +74,39 @@ func (s *Store) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 // NodeState returns the state of current node
 func (s *Store) NodeState() string { return s.raft.State().String() }
 
-// RaftServers returns the raft cluster state
-func (s *Store) RaftServers() (model.RaftCluster, error) {
+// LeadServer returns the raft lead server
+func (s *Store) LeadServer() (model.Peer, error) {
+	leader := s.raft.Leader()
+
+	var leaderServer model.Peer
+
+	if err := s.walkRaftServers(func(srv raft.Server) (bool, error) {
+		if leader != srv.Address {
+			return true, nil
+		}
+
+		leaderServer = model.Peer{
+			Address: string(srv.Address),
+			NodeID:  model.NodeID(srv.ID),
+			State:   raft.Leader.String(),
+		}
+
+		return false, nil
+	}); err != nil {
+		return leaderServer, err
+	}
+
+	return leaderServer, nil
+}
+
+// Cluster returns the raft cluster state
+func (s *Store) Cluster() (model.RaftCluster, error) {
 	leader := s.raft.Leader()
 	cluster := model.RaftCluster{
 		Servers: make([]model.Peer, 0),
 	}
 
-	err := s.walkRaftServers(func(srv raft.Server) error {
+	err := s.walkRaftServers(func(srv raft.Server) (bool, error) {
 		peer := model.Peer{Address: string(srv.Address), NodeID: model.NodeID(srv.ID)}
 
 		if leader == srv.Address {
@@ -104,7 +129,7 @@ func (s *Store) RaftServers() (model.RaftCluster, error) {
 			cluster.Servers = append(cluster.Servers, peer)
 		}
 
-		return nil
+		return true, nil
 	})
 
 	return cluster, err
@@ -226,36 +251,47 @@ func (s *Store) Delete(key string) error {
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
 func (s *Store) Join(nodeID, addr string) error {
+	s.logger.Printf("received request to join node at %s", addr)
+
+	if s.raft.State() != raft.Leader {
+		return ErrNotLeader
+	}
+
 	serverID := raft.ServerID(nodeID)
 	serverAddress := raft.ServerAddress(addr)
+	alreadyJoined := false
 
-	err := s.walkRaftServers(func(srv raft.Server) error {
+	if err := s.walkRaftServers(func(srv raft.Server) (bool, error) {
 		// If a node already exists with either the joining node's ID or address,
 		// that node may need to be removed from the config first.
-		idEquals := srv.ID == serverID
-		AddrEquals := srv.Address == serverAddress
+		idEquals, addrEquals := srv.ID == serverID, srv.Address == serverAddress
 
 		// If *both* the ID and the address are the same,
 		// then nothing -- not even a join operation -- is needed.
-		if AddrEquals && idEquals {
-			return nil // already member of cluster, ignoring join request
+		if addrEquals && idEquals {
+			alreadyJoined = true
+			return false, nil // already member of cluster, ignoring join request
 		}
 
-		if idEquals || AddrEquals {
+		if idEquals || addrEquals {
 			if f := s.raft.RemoveServer(srv.ID, 0, 0); f.Error() != nil {
-				return fmt.Errorf("error removing existing node %s at %s: %w", nodeID, addr, f.Error())
+				return false, fmt.Errorf("error removing existing node %s at %s: %w", nodeID, addr, f.Error())
 			}
 		}
 
-		return nil
-	})
-
-	if err != nil {
+		return true, nil
+	}); err != nil {
 		return err
 	}
 
+	if alreadyJoined {
+		s.logger.Printf("node %s at %s already member of cluster, ignoring join request", nodeID, addr)
+
+		return nil
+	}
+
 	if f := s.raft.AddVoter(serverID, serverAddress, 0, 0); f.Error() != nil {
-		return fmt.Errorf("node %s at %s joined error %w", nodeID, addr, err)
+		return fmt.Errorf("node %s at %s joined error %w", nodeID, addr, f.Error())
 	}
 
 	return nil
@@ -393,15 +429,17 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 
 func (f *fsmSnapshot) Release() {}
 
-func (s *Store) walkRaftServers(fn func(srv raft.Server) error) error {
+func (s *Store) walkRaftServers(fn func(srv raft.Server) (bool, error)) error {
 	f := s.raft.GetConfiguration()
 	if err := f.Error(); err != nil {
 		return fmt.Errorf("failed to get raft configuration: %w", err)
 	}
 
 	for _, srv := range f.Configuration().Servers {
-		if err := fn(srv); err != nil {
+		if cont, err := fn(srv); err != nil {
 			return fmt.Errorf("failed to invoke walk fn: %w", err)
+		} else if !cont {
+			break
 		}
 	}
 
