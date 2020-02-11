@@ -191,6 +191,13 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	addr := leader.NodeID.HTTPAddr()
+	if addr == "" {
+		log.Printf("failed to get raft leader\n")
+		util.WriteAsJSON(model.Rsp{Msg: "leader N/A"}, w)
+
+		return
+	}
+
 	log.Printf("forward %s to leader %s\n", r.URL.String(), addr)
 
 	p := util.ReverseProxy(r.URL.Path, addr, r.URL.Path, 10*time.Second) // nolint gomnd

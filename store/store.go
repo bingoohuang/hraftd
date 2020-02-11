@@ -77,15 +77,18 @@ func (s *Store) NodeState() string { return s.raft.State().String() }
 // LeadServer returns the raft lead server
 func (s *Store) LeadServer() (model.Peer, error) {
 	leader := s.raft.Leader()
+	peer := model.Peer{}
 
-	var leaderServer model.Peer
+	if leader == "" {
+		return peer, errors.New("leader NA")
+	}
 
 	if err := s.walkRaftServers(func(srv raft.Server) (bool, error) {
 		if leader != srv.Address {
 			return true, nil
 		}
 
-		leaderServer = model.Peer{
+		peer = model.Peer{
 			Address: string(srv.Address),
 			NodeID:  model.NodeID(srv.ID),
 			State:   raft.Leader.String(),
@@ -93,10 +96,14 @@ func (s *Store) LeadServer() (model.Peer, error) {
 
 		return false, nil
 	}); err != nil {
-		return leaderServer, err
+		return peer, err
 	}
 
-	return leaderServer, nil
+	if peer.NodeID == "" {
+		return peer, errors.New("leader NA")
+	}
+
+	return peer, nil
 }
 
 // Cluster returns the raft cluster state
