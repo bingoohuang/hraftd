@@ -18,9 +18,7 @@ func main() {
 	arg := model.DefineFlags()
 
 	flag.Parse()
-
 	arg.Fix()
-
 	log.Printf("Args:%s\n", util.Hjson(arg))
 
 	arg.ApplyInterceptor = func(_ *raft.Log, cmd model.Command) bool {
@@ -30,23 +28,19 @@ func main() {
 	}
 
 	h := httpd.Create(arg)
-
-	go func() {
-		for leader := range h.Store.LeaderCh() {
-			if leader {
-				log.Println("hraftd became leader")
-			} else {
-				log.Println("hraftd lost leader")
-			}
-		}
-	}()
+	go leaderChanging(h.Store.LeaderCh())
 
 	if err := h.Start(); err != nil {
 		log.Fatalf("failed to start HTTP service: %s", err.Error())
 	}
 
 	log.Println("hraftd started successfully")
-
 	model.WaitInterrupt()
 	log.Println("hraftd exiting")
+}
+
+func leaderChanging(c <-chan bool) {
+	for leader := range c {
+		log.Printf("hraftd leadership changed to %v\n", leader)
+	}
 }
