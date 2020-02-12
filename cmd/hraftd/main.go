@@ -19,7 +19,7 @@ func main() {
 
 	flag.Parse()
 
-	arg.FixRaftArg()
+	arg.Fix()
 
 	log.Printf("Args:%s\n", util.Hjson(arg))
 

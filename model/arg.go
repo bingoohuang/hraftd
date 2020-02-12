@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bingoohuang/gonet"
 	"github.com/bingoohuang/hraftd/util"
 )
 
@@ -20,14 +21,14 @@ import (
 type Arg struct {
 	Bootstrap bool
 
-	InMem     bool
-	RaftAddr  string
-	RaftAdv   string
-	RaftDir   string
-	NodeID    NodeID
-	HTTPAddr  string
-	HTTPAdv   string
-	JoinAddrs string
+	InMem       bool
+	RaftAddr    string
+	RaftAdv     string
+	RaftNodeDir string
+	NodeID      NodeID
+	HTTPAddr    string
+	HTTPAdv     string
+	JoinAddrs   string
 
 	ApplyInterceptor ApplyInterceptor `json:"-"`
 	JoinAddrSlice    []string
@@ -38,11 +39,11 @@ func DefineFlags() *Arg {
 	var app Arg
 
 	flag.BoolVar(&app.InMem, "rmem", false, "Use in-memory storage for Raft")
-	flag.StringVar(&app.HTTPAddr, "haddr", ":11000", "HTTP server bind address")
+	flag.StringVar(&app.HTTPAddr, "haddr", "", "HTTP server bind address")
 	flag.StringVar(&app.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
 	flag.StringVar(&app.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
 	flag.StringVar(&app.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
-	flag.StringVar(&app.RaftDir, "rdir", "", "Raft data directory, default to ~/.raftdir/{id}")
+	flag.StringVar(&app.RaftNodeDir, "rdir", "", "Raft data directory, default to ~/.hraftd/{id}")
 	flag.StringVar(&app.JoinAddrs, "rjoin", "", "Set raft cluster join addresses separated by comma, if any")
 
 	return &app
@@ -55,8 +56,8 @@ func WaitInterrupt() {
 	<-terminate
 }
 
-// FixRaftArg fixes the arg for some defaults.
-func (a *Arg) FixRaftArg() {
+// Fix fixes the arg for some defaults.
+func (a *Arg) Fix() {
 	a.fixAddr()
 	a.parseFlagRaftNodeID()
 	a.parseFlagRaftDir()
@@ -64,15 +65,45 @@ func (a *Arg) FixRaftArg() {
 }
 
 func (a *Arg) fixAddr() {
-	if a.RaftAddr == "" {
+	localIP := gonet.ListIpsv4()[0]
+
+	switch {
+	case a.RaftAddr == "" && a.HTTPAddr == "":
+		a.RaftAddr = localIP + ":12000"
+		a.HTTPAddr = localIP + ":11000"
+	case a.RaftAddr == "" && a.HTTPAddr != "":
 		host, port, err := net.SplitHostPort(a.HTTPAddr)
 		if err != nil {
 			panic(err)
 		}
 
 		por, _ := strconv.Atoi(port)
+		if por > 35565-1000 {
+			log.Panicf("port %d is too large (<= 34565)\n", por)
+		}
 
+		host = util.If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
+
+		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
 		a.RaftAddr = fmt.Sprintf("%s:%d", host, por+1000) // nolint gomnd
+	case a.RaftAddr != "" && a.HTTPAddr == "":
+		host, port, err := net.SplitHostPort(a.RaftAddr)
+		if err != nil {
+			panic(err)
+		}
+
+		por, _ := strconv.Atoi(port)
+
+		// sudo setcap cap_net_bind_service=ep some-binary
+		// In Linux, the things root can do have been broken up into a set of capabilities.
+		// CAP_NET_BIND_SERVICE is the ability to bind to ports <= 1024.
+		if por < 1024+1000 {
+			log.Panicf("port %d is too large (>= 2024)\n", por)
+		}
+
+		host = util.If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
+		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por-1000) // nolint gomnd
+		a.RaftAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
 	}
 }
 
@@ -85,10 +116,6 @@ type BindAddr string
 // URL returns the HTTP access URL with relative path
 func (a BindAddr) URL(path string) string {
 	host, port, _ := net.SplitHostPort(string(a))
-	if host == "" {
-		host = "127.0.0.1"
-	}
-
 	path = strings.TrimPrefix(path, "/")
 
 	return fmt.Sprintf("http://%s:%s/%s", host, port, path)
@@ -109,30 +136,31 @@ func (r NodeID) HTTPAddr() string { return strings.SplitN(string(r), ",", -1)[0]
 // RaftAddr returns the Raft bind addr in the NodeID
 func (r NodeID) RaftAddr() string { return strings.SplitN(string(r), ",", -1)[1] }
 
-func (a *Arg) parseFlagRaftNodeID() { a.NodeID = NodeID(a.HTTPAddr + "," + a.RaftAddr) }
+func (r NodeID) Fix(host string) NodeID {
+	_, hPort, _ := net.SplitHostPort(r.HTTPAddr())
+	_, rPort, _ := net.SplitHostPort(r.RaftAddr())
+
+	return NodeID(fmt.Sprintf("%s:%s,%s:%s", host, hPort, host, rPort))
+}
+
+func (a *Arg) parseFlagRaftNodeID() {
+	a.NodeID = NodeID(a.HTTPAddr + "," + a.RaftAddr).Fix(gonet.ListIpsv4()[0])
+}
 
 // nolint gomnd
 func (a *Arg) parseFlagRaftDir() {
-	if a.RaftDir == "" {
+	if a.RaftNodeDir == "" {
 		basePath := "./"
 		if usr, err := user.Current(); err == nil {
 			basePath = usr.HomeDir
 		}
 
-		a.RaftDir = filepath.Join(basePath, ".raftdir", string(a.NodeID))
+		a.RaftNodeDir = filepath.Join(basePath, ".hraftd", string(a.NodeID))
 	}
-
-	_ = os.MkdirAll(a.RaftDir, 0700)
 }
 
 func (a *Arg) parseBootstrap() {
 	a.JoinAddrSlice = make([]string, 0)
-
-	if a.JoinAddrs == "" {
-		a.Bootstrap = true
-
-		return
-	}
 
 	for _, addr := range strings.Split(a.JoinAddrs, ",") {
 		if addr != "" {
@@ -142,11 +170,32 @@ func (a *Arg) parseBootstrap() {
 
 	if len(a.JoinAddrSlice) == 0 || a.JoinAddrSlice[0] == a.HTTPAddr {
 		a.Bootstrap = true
+
+		return
+	}
+
+	jHost, jPort, _ := net.SplitHostPort(a.JoinAddrSlice[0])
+	_, hPort, _ := net.SplitHostPort(a.HTTPAddr)
+
+	if jPort != hPort {
+		a.Bootstrap = false
+
+		return
+	}
+
+	if gonet.ListIPMap()[jHost] {
+		a.Bootstrap = true
+
+		return
 	}
 }
 
 // Join joins the current not to raft cluster
 func (a *Arg) Join() error {
+	if a.Bootstrap {
+		return nil
+	}
+
 	addrLen := len(a.JoinAddrSlice)
 	if addrLen == 0 {
 		return nil

@@ -36,14 +36,12 @@ func Create(arg *model.Arg) *Service {
 }
 
 // Start starts the service.
-func (s *Service) Start() error {
-	ln, err := net.Listen("tcp", s.Arg.HTTPAddr)
-	if err != nil {
+func (s *Service) Start() (err error) {
+	if s.Ln, err = net.Listen("tcp", s.Arg.HTTPAddr); err != nil {
 		return err
 	}
 
 	go func() {
-		s.Ln = ln
 		http.Handle("/", s)
 
 		server := http.Server{Handler: s}
@@ -86,6 +84,8 @@ func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) {
 		util.WriteAsJSON(model.Rsp{OK: false, Msg: err.Error()}, w)
 		return
 	}
+
+	m.Fix(util.EmptyThen(r.Header.Get(util.XOriginRemoteAddr), r.RemoteAddr))
 
 	log.Printf("received join request for remote node %s at %s\n", m.NodeID, m.Addr)
 
@@ -199,6 +199,13 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("forward %s to leader %s\n", r.URL.String(), addr)
+
+	if xor := r.Header.Get(util.XOriginRemoteAddr); xor != "" {
+		log.Printf("forward two times not allowed\n")
+		util.WriteAsJSON(model.Rsp{Msg: "forward two times not allowed"}, w)
+
+		return
+	}
 
 	p := util.ReverseProxy(r.URL.Path, addr, r.URL.Path, 10*time.Second) // nolint gomnd
 	p.ServeHTTP(w, r)

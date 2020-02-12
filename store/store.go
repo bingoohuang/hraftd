@@ -8,10 +8,12 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -163,29 +165,89 @@ func (s *Store) Open() error {
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(s.Arg.NodeID)
 
+	raftNodeDirExits := util.PathExists(s.Arg.RaftNodeDir)
+
+	s.logger.Printf("RaftNodeDir %s exists %v\n", s.Arg.RaftNodeDir, raftNodeDirExits)
+
 	logStore, stableStore, snapshots, err := s.createStores()
 	if err != nil {
 		return err
 	}
 
-	transport, err := s.createTransport()
+	t, err := s.createTransport()
 	if err != nil {
 		return err
 	}
 
-	r, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, transport)
+	if raftNodeDirExits {
+		if err := s.recoverCluster(config, logStore, stableStore, snapshots, t); err != nil {
+			return err
+		}
+	}
+
+	r, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, t)
 	if err != nil {
 		return fmt.Errorf("new raft: %s", err)
 	}
 
 	s.raft = r
 
-	if s.Arg.Bootstrap {
-		s.raft.BootstrapCluster(raft.Configuration{
-			Servers: []raft.Server{{ID: config.LocalID, Address: transport.LocalAddr()}}})
+	if s.Arg.Bootstrap && !raftNodeDirExits {
+		c := raft.Configuration{Servers: []raft.Server{{ID: config.LocalID, Address: t.LocalAddr()}}}
+		s.raft.BootstrapCluster(c)
 	}
 
 	return nil
+}
+
+func (s *Store) recoverCluster(config *raft.Config, logStore raft.LogStore, stableStore raft.StableStore,
+	snapshots raft.SnapshotStore, t raft.Transport) error {
+	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
+	if !util.PathExists(peerFile) {
+		return nil
+	}
+
+	c, err := ReadPeersJSON(peerFile)
+	if err != nil {
+		return err
+	}
+
+	if err := raft.RecoverCluster(config, s, logStore, stableStore, snapshots, t, c); err != nil {
+		return err
+	}
+
+	s.logger.Printf("recovered from %s\n successfully\n", peerFile)
+
+	return nil
+}
+
+// ReadPeersJSON consumes a legacy peers.json file in the format of the old JSON
+// peer store and creates a new-style configuration structure. This can be used
+// to migrate this data or perform manual recovery when running protocol versions
+// that can interoperate with older, unversioned Raft servers. This should not be
+// used once server IDs are in use, because the old peers.json file didn't have
+// support for these, nor non-voter suffrage types.
+func ReadPeersJSON(path string) (raft.Configuration, error) {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return raft.Configuration{}, err
+	}
+
+	var peers []ConfigEntry
+
+	dec := json.NewDecoder(bytes.NewReader(buf))
+	if err := dec.Decode(&peers); err != nil {
+		return raft.Configuration{}, err
+	}
+
+	// Map it into the new-style configuration structure. We can only specify
+	// voter roles here, and the ID has to be the same as the address.
+	c := raft.Configuration{}
+	for _, peer := range peers {
+		c.Servers = append(c.Servers, raft.Server{Suffrage: raft.Voter, ID: peer.ID, Address: peer.Address})
+	}
+
+	return c, nil
 }
 
 func (s *Store) createTransport() (*raft.NetworkTransport, error) {
@@ -202,7 +264,7 @@ func (s *Store) createTransport() (*raft.NetworkTransport, error) {
 // createStores creates the log store and stable store.
 func (s *Store) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
 	// Create the snapshot store. This allows the Raft to truncate the log.
-	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftDir, retainSnapshotCount, os.Stderr)
+	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftNodeDir, retainSnapshotCount, os.Stderr)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("file snapshot store: %s", err)
 	}
@@ -211,7 +273,7 @@ func (s *Store) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotSt
 		return raft.NewInmemStore(), raft.NewInmemStore(), ss, nil
 	}
 
-	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftDir, "raft.db"))
+	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftNodeDir, "raft.db"))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("new bolt store: %s", err)
 	}
@@ -301,7 +363,40 @@ func (s *Store) Join(nodeID, addr string) error {
 		return fmt.Errorf("node %s at %s joined error %w", nodeID, addr, f.Error())
 	}
 
+	_ = s.writeConfigEntries()
+
 	return nil
+}
+
+// ConfigEntry is used when decoding a new-style peers.json.
+type ConfigEntry struct {
+	// ID is the ID of the server (a UUID, usually).
+	ID raft.ServerID `json:"id"`
+
+	// Address is the host:port of the server.
+	Address raft.ServerAddress `json:"address"`
+
+	// NonVoter controls the suffrage. We choose this sense so people
+	// can leave this out and get a Voter by default.
+	NonVoter bool `json:"non_voter"`
+}
+
+func (s *Store) writeConfigEntries() error {
+	servers := s.raft.GetConfiguration().Configuration().Servers
+	entries := make([]ConfigEntry, len(servers))
+
+	for i, server := range servers {
+		entries[i] = ConfigEntry{ID: server.ID, Address: server.Address, NonVoter: false}
+	}
+
+	entriesJSON, err := json.Marshal(entries)
+	if err != nil {
+		return err
+	}
+
+	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
+
+	return ioutil.WriteFile(peerFile, entriesJSON, 0644)
 }
 
 // LeaderAddr returns the address of the current leader. Returns a

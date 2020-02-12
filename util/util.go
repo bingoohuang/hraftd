@@ -11,6 +11,33 @@ import (
 	hjson "github.com/hjson/hjson-go"
 )
 
+// EmptyThen returns t if s is empty
+func EmptyThen(s, t string) string {
+	if s == "" {
+		return t
+	}
+
+	return s
+}
+
+// EqualsThen returns t if s equals to e
+func EqualsThen(s, e, t string) string {
+	if s == e {
+		return t
+	}
+
+	return s
+}
+
+// If returns s if i else t
+func If(i bool, s, t string) string {
+	if i {
+		return s
+	}
+
+	return t
+}
+
 // CloneMap clones a map
 func CloneMap(m map[string]string) map[string]string {
 	o := make(map[string]string)

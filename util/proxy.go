@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const XOriginRemoteAddr = "X-Origin-RemoteAddr"
+
 // ReverseProxy reverse proxy originalPath to targetHost with targetPath.
 // And the relative forwarding is rewritten.
 func ReverseProxy(originalPath, targetHost, targetPath string, timeout time.Duration) *httputil.ReverseProxy {
@@ -18,6 +20,7 @@ func ReverseProxy(originalPath, targetHost, targetPath string, timeout time.Dura
 		req.URL.Host = targetHost
 		req.URL.Path = targetPath
 
+		req.Header.Set(XOriginRemoteAddr, req.RemoteAddr)
 		req.Header.Add("X-Forwarded-Host", req.Host)
 		req.Header.Add("X-Origin-Host", req.Header.Get("Host"))
 	}

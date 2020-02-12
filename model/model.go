@@ -1,6 +1,12 @@
 package model
 
-import "github.com/hashicorp/raft"
+import (
+	"fmt"
+	"net"
+
+	"github.com/bingoohuang/hraftd/util"
+	"github.com/hashicorp/raft"
+)
 
 // Peer defines the peers information
 type Peer struct {
@@ -20,6 +26,15 @@ type RaftCluster struct {
 type JoinRequest struct {
 	Addr   string `json:"addr"`
 	NodeID NodeID `json:"id"`
+}
+
+func (r *JoinRequest) Fix(remoteAddr string) {
+	remoteHost, _, _ := net.SplitHostPort(remoteAddr)
+	host := util.EqualsThen(remoteHost, "127.0.0.1", "")
+
+	_, port, _ := net.SplitHostPort(r.Addr)
+	r.Addr = fmt.Sprintf("%s:%s", host, port)
+	r.NodeID = r.NodeID.Fix(host)
 }
 
 // Rsp defines the Raft join response
