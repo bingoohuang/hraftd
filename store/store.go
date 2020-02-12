@@ -216,7 +216,7 @@ func (s *Store) recoverCluster(config *raft.Config, logStore raft.LogStore, stab
 		return err
 	}
 
-	s.logger.Printf("recovered from %s\n successfully\n", peerFile)
+	s.logger.Printf("recovered from %s successfully\n", peerFile)
 
 	return nil
 }

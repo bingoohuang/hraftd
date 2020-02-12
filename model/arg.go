@@ -70,7 +70,7 @@ func (a *Arg) fixAddr() {
 	switch {
 	case a.RaftAddr == "" && a.HTTPAddr == "":
 		a.RaftAddr = localIP + ":12000"
-		a.HTTPAddr = localIP + ":11000"
+		a.HTTPAddr = ":11000"
 	case a.RaftAddr == "" && a.HTTPAddr != "":
 		host, port, err := net.SplitHostPort(a.HTTPAddr)
 		if err != nil {
@@ -84,7 +84,7 @@ func (a *Arg) fixAddr() {
 
 		host = util.If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
 
-		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
+		a.HTTPAddr = fmt.Sprintf(":%d", por)              // nolint gomnd
 		a.RaftAddr = fmt.Sprintf("%s:%d", host, por+1000) // nolint gomnd
 	case a.RaftAddr != "" && a.HTTPAddr == "":
 		host, port, err := net.SplitHostPort(a.RaftAddr)
@@ -102,8 +102,8 @@ func (a *Arg) fixAddr() {
 		}
 
 		host = util.If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
-		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por-1000) // nolint gomnd
-		a.RaftAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
+		a.HTTPAddr = fmt.Sprintf(":%d", por-1000)    // nolint gomnd
+		a.RaftAddr = fmt.Sprintf("%s:%d", host, por) // nolint gomnd
 	}
 }
 
@@ -162,10 +162,22 @@ func (a *Arg) parseFlagRaftDir() {
 func (a *Arg) parseBootstrap() {
 	a.JoinAddrSlice = make([]string, 0)
 
+	localIP := gonet.ListIpsv4()[0]
+
 	for _, addr := range strings.Split(a.JoinAddrs, ",") {
-		if addr != "" {
-			a.JoinAddrSlice = append(a.JoinAddrSlice, addr)
+		if addr == "" {
+			continue
 		}
+
+		h, p, err := net.SplitHostPort(addr)
+		if err != nil {
+			log.Fatalf("fail to parse JoinAddrs %s error %v\n", a.JoinAddrs, err)
+		}
+
+		h = util.EmptyThen(h, localIP)
+		adr := fmt.Sprintf("%s:%s", h, p)
+
+		a.JoinAddrSlice = append(a.JoinAddrSlice, adr)
 	}
 
 	if len(a.JoinAddrSlice) == 0 || a.JoinAddrSlice[0] == a.HTTPAddr {
@@ -183,7 +195,7 @@ func (a *Arg) parseBootstrap() {
 		return
 	}
 
-	if gonet.ListIPMap()[jHost] {
+	if jHost == "" || gonet.ListIPMap()[jHost] {
 		a.Bootstrap = true
 
 		return
