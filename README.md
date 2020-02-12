@@ -1,37 +1,41 @@
 # hraftd
 
-hraftd is a reference example use of the Hashicorp Raft. Read more about [raft brief](RaftBrief.md).
-
-This project is rewritten from [otoolep/hraftd](https://github.com/otoolep/hraftd) and this [blog post](http://www.philipotoole.com/building-a-distributed-key-value-store-using-raft/)..
+hraftd is a reference usage of the Hashicorp Raft. Read more about [raft brief](RaftBrief.md).
 
 [Hashicorp](https://hashicorp.com/) provide a [nice implementation](https://github.com/hashicorp/raft)
 of the [Raft](https://raft.github.io/) consensus protocol,
 and it’s at the heart of [InfluxDB](http://www.influxdb.com/), [consul](http://www.consul.io/)
 (amongst [other systems](https://godoc.org/github.com/hashicorp/raft?importers)).
 
+It is rewritten from [otoolep/hraftd](https://github.com/otoolep/hraftd) 
+and this [blog post](http://www.philipotoole.com/building-a-distributed-key-value-store-using-raft/).
+
 ![image](https://user-images.githubusercontent.com/1940588/73939073-a0485780-4923-11ea-9b61-73fd344660bd.png)
 
 Raft is a _distributed consensus protocol_, meaning its purpose is to ensure
 that a set of nodes -- a cluster -- agree on the state of some arbitrary state machine,
 even when nodes are vulnerable to failure and network partitions.
+
 Distributed consensus is a fundamental concept when it comes to building fault-tolerant systems.
 
-A simple example system like hraftd makes it easy to study the Raft consensus protocol in general,
+A simple example like hraftd makes it easy to study the Raft consensus protocol in general,
 and Hashicorp's Raft implementation in particular. It can be run on Linux, OSX, and Windows.
 
 ## Reading and writing keys
 
 The reference implementation is a very simple in-memory key-value store.
-You can set a key by sending a request to the HTTP bind address (which defaults to `localhost:11000`):
+You can set/get a key by sending a request to the HTTP bind address (which defaults to `localhost:11000`):
 
 ```bash
-curl -XPOST localhost:11000/key -d '{"foo": "bar"}'
+curl localhost:11000/key -d '{"foo": "bar"}'
+curl localhost:11000/key/foo
 ```
 
-You can read the value for a key like so:
+or use [httpie](https://httpie.org/)
 
 ```bash
-curl -XGET localhost:11000/key/foo
+http :11000/key foo=barst
+http :11000/key/foo
 ```
 
 ## Running hraftd
@@ -47,13 +51,13 @@ Run your first hraftd node like so:
 You can now set a key and read its value back:
 
 ```bash
-curl -XPOST localhost:11000/key -d '{"user1": "batman"}'
+curl localhost:11000/key -d '{"user1": "batman"}'
 curl localhost:11000/key/user1
 ```
 
 ### Bring up a cluster locally
 
-Let's bring up 2 more nodes, so we have a 3-node cluster. That way we can tolerate the failure of 1 node:
+Let's bring up 3-node cluster. That way we can tolerate the failure of 1 node:
 
 ```bash
 hraftd -rjoin :11000 -haddr :11000
@@ -66,15 +70,11 @@ This would not be necessary if each node ran on a different host.
 
 This tells each new node to join the existing node. Once joined, each node now knows about the key:
 
-```bash
-curl localhost:11000/key/user1 localhost:11001/key/user1 localhost:11002/key/user1
-```
+`curl localhost:11000/key/user1 localhost:11001/key/user1 localhost:11002/key/user1`
 
 Furthermore, you can add a second key:
 
-```bash
-curl -XPOST localhost:11000/key -d '{"user2": "robin"}'
-```
+`curl localhost:11000/key -d '{"user2": "robin"}'`
 
 Confirm that the new key has been set like so:
 
@@ -110,7 +110,11 @@ output:
 ```
 
 
-`curl localhost:11000/raft/cluster | jq`
+`curl localhost:11000/raft/cluster | python -m json.tool`
+
+or
+
+`http :11000/raft/cluster`
 
 output:
 
