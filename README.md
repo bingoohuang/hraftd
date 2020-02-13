@@ -208,6 +208,35 @@ $ ps -ef|grep raft
   502 72405 46094   0 10:30上午 ttys009    0:06.71 hraftd -haddr :11002 -raddr :12002 -rjoin :11000
 ```
 
+remove node from cluster:
+
+```bash
+$ http -v DELETE :11001/raft/remove id=192.168.10.101:11004,192.168.10.101:12004
+DELETE /raft/remove HTTP/1.1
+Accept: application/json, */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 51
+Content-Type: application/json
+Host: localhost:11001
+User-Agent: HTTPie/1.0.2
+
+{
+    "id": "192.168.10.101:11004,192.168.10.101:12004"
+}
+
+HTTP/1.1 200 OK
+Content-Length: 34
+Content-Type: application/json; charset=utf-8
+Date: Thu, 13 Feb 2020 15:49:15 GMT
+
+{
+    "msg": "OK",
+    "ok": true
+}
+
+```
+
 #### Stale reads
 
 Because any node will answer a GET request, and nodes may "fall behind" updates, stale reads are possible. Again,

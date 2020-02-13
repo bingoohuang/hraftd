@@ -41,8 +41,8 @@ func (r *JoinRequest) Fix(remoteAddr string) {
 // Rsp defines the Raft join response
 type Rsp struct {
 	OK   bool        `json:"ok"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data"`
+	Msg  string      `json:"msg,omitempty"`
+	Data interface{} `json:"data,omitempty"`
 }
 
 // Store is the interface Raft-backed key-value stores must implement.
