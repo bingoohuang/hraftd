@@ -29,6 +29,7 @@ type JoinRequest struct {
 	NodeID NodeID `json:"id"`
 }
 
+// Fix fixes the join request's host
 func (r *JoinRequest) Fix(remoteAddr string) {
 	remoteHost, _, _ := net.SplitHostPort(remoteAddr)
 	host := util.EqualsThen(remoteHost, "127.0.0.1", "")
@@ -95,4 +96,5 @@ type Command struct {
 	Time  string `json:"time"`
 }
 
+// ApplyInterceptor defines the raft log apply interceptor prototype.
 type ApplyInterceptor func(l *raft.Log, cmd Command) bool

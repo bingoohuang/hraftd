@@ -128,7 +128,7 @@ func (r NodeID) URL(relativePath string) string { return BindAddr(r.HTTPAddr()).
 // URLRaftState is http://httpAddr/raft/join
 func (r NodeID) URLRaftState() string { return r.URL("/raft/state") }
 
-// URLRaftState is http://httpAddr/raft/join
+// URLRaftJoin is http://httpAddr/raft/join
 func (r NodeID) URLRaftJoin() string { return r.URL("/raft/join") }
 
 // URLRaftJoin is http://httpAddr/raft/join
@@ -140,6 +140,7 @@ func (r NodeID) HTTPAddr() string { return strings.SplitN(string(r), ",", -1)[0]
 // RaftAddr returns the Raft bind addr in the NodeID
 func (r NodeID) RaftAddr() string { return strings.SplitN(string(r), ",", -1)[1] }
 
+// Fix fixes the ID component to full host:port
 func (r NodeID) Fix(host string) NodeID {
 	_, hPort, _ := net.SplitHostPort(r.HTTPAddr())
 	_, rPort, _ := net.SplitHostPort(r.RaftAddr())
@@ -233,6 +234,7 @@ func (a *Arg) Join() error {
 	return fmt.Errorf("failed to join %s", a.JoinAddrs)
 }
 
+// Join joins current node (raftAddr and nodeID) to joinAddr.
 func Join(joinAddr, raftAddr string, nodeID NodeID) error {
 	joinURL := BindAddr(joinAddr).URLRaftJoin()
 	log.Printf("joinURL %s\n", joinURL)

@@ -469,6 +469,7 @@ func ReadPeersJSON(path string) (raft.Configuration, error) {
 	return c, nil
 }
 
+// ParseSuffrage parses s to raft.ServerSuffrage.
 func ParseSuffrage(s string) raft.ServerSuffrage {
 	switch s {
 	case "Voter":

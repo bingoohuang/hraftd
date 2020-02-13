@@ -41,4 +41,5 @@ func parseRSP(resp *http.Response, v interface{}) (string, error) {
 	return rs, json.Unmarshal([]byte(rs), v)
 }
 
+// ContentTypeJSON is the JSON Content-Type.
 const ContentTypeJSON = "application-type/json"

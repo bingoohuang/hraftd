@@ -66,7 +66,7 @@ func (s *Service) Start() (err error) {
 // Close closes the service.
 func (s *Service) Close() error { return s.Ln.Close() }
 
-// BindAddr returns the address on which the Service is listening
+// Addr returns the address on which the Service is listening
 func (s *Service) Addr() net.Addr { return s.Ln.Addr() }
 
 // ServeHTTP allows Service to serve HTTP requests.
@@ -210,7 +210,7 @@ func (s *Service) doPost(w http.ResponseWriter, r *http.Request) {
 // ServeHTTPFn defines ServeHTTP function prototype.
 type ServeHTTPFn func(w http.ResponseWriter, r *http.Request)
 
-// ServeHTTPFn defines ServeHTTP function prototype.
+// ServeHTTPFnE defines ServeHTTP function prototype.
 type ServeHTTPFnE func(w http.ResponseWriter, r *http.Request) error
 
 // CheckMethod checks the method and invoke f.
@@ -222,7 +222,7 @@ func CheckMethod(m string, f ServeHTTPFn, w http.ResponseWriter, r *http.Request
 	}
 }
 
-// CheckMethod checks the method and invoke f.
+// CheckMethodE checks the method and invoke f.
 func CheckMethodE(m string, f ServeHTTPFnE, w http.ResponseWriter, r *http.Request) {
 	if r.Method != m {
 		w.WriteHeader(http.StatusMethodNotAllowed)

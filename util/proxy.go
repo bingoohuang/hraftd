@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// XOriginRemoteAddr is the const of header for original remote addr to real address sourcing.
 const XOriginRemoteAddr = "X-Origin-RemoteAddr"
 
 // ReverseProxy reverse proxy originalPath to targetHost with targetPath.
