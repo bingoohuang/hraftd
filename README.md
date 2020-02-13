@@ -102,7 +102,28 @@ output:
   "last_log_term": "8",
   "last_snapshot_index": "0",
   "last_snapshot_term": "0",
-  "latest_configuration": "[{Suffrage:Voter ID::11000,:12000 Address::12000} {Suffrage:Voter ID::11001,:12001 Address::12001} {Suffrage:Voter ID::11002,:12002 Address::12002}]",
+  "latest_configuration": [
+    {
+      "id": "192.168.10.101:11001,192.168.10.101:12001",
+      "address": "192.168.10.101:12001",
+      "suffrage": "Voter"
+    },
+    {
+      "id": "192.168.10.101:11003,192.168.10.101:12003",
+      "address": "192.168.10.101:12003",
+      "suffrage": "Voter"
+    },
+    {
+      "id": "192.168.10.101:11004,192.168.10.101:12004",
+      "address": "192.168.10.101:12004",
+      "suffrage": "Voter"
+    },
+    {
+      "id": "192.168.10.101:11002,192.168.10.101:12002",
+      "address": "192.168.10.101:12002",
+      "suffrage": "Voter"
+    }
+  ],
   "latest_configuration_index": "0",
   "num_peers": "2",
   "protocol_version": "3",
