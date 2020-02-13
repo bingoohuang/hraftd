@@ -65,7 +65,32 @@ func New(arg *model.Arg) *Store {
 }
 
 // RaftStats returns raft stats.
-func (s *Store) RaftStats() map[string]string { return s.raft.Stats() }
+func (s *Store) RaftStats() map[string]interface{} {
+	stats := s.raft.Stats()
+	m := make(map[string]interface{})
+
+	for k, v := range stats {
+		if k != "latest_configuration" {
+			m[k] = v
+			continue
+		}
+
+		servers := s.raft.GetConfiguration().Configuration().Servers
+		nodes := make([]ConfigEntry, len(servers))
+
+		for i, server := range servers {
+			nodes[i] = ConfigEntry{
+				ID:       server.ID,
+				Address:  server.Address,
+				Suffrage: server.Suffrage.String(),
+			}
+		}
+
+		m[k] = nodes
+	}
+
+	return m
+}
 
 // LeaderCh is used to get a channel which delivers signals on
 // acquiring or losing leadership. It sends true if we become
@@ -129,14 +154,16 @@ func (s *Store) Cluster() (model.RaftCluster, error) {
 		}
 
 		if peer.State == "" {
-			if r := s.getNodeState(peer); r.OK {
+			if r := s.getNodeState(peer.NodeID); r.OK {
 				peer.State = r.Msg
 			}
 		}
 
-		if peer.State != "" {
-			cluster.Servers = append(cluster.Servers, peer)
+		if peer.State == "" {
+			peer.State = "Lost"
 		}
+
+		cluster.Servers = append(cluster.Servers, peer)
 
 		return true, nil
 	})
@@ -144,9 +171,9 @@ func (s *Store) Cluster() (model.RaftCluster, error) {
 	return cluster, err
 }
 
-func (s *Store) getNodeState(peer model.Peer) *model.Rsp {
+func (s *Store) getNodeState(nodeID model.NodeID) *model.Rsp {
 	r := &model.Rsp{}
-	u := peer.NodeID.URLRaftState()
+	u := nodeID.URLRaftState()
 	rsp, err := util.GetJSON(u, r)
 	s.logger.Printf("invoke get node state %s rsp %v\n", u, rsp)
 
@@ -212,6 +239,10 @@ func (s *Store) recoverCluster(config *raft.Config, logStore raft.LogStore, stab
 		return err
 	}
 
+	if ok := s.tryJoinLeader(c); ok {
+		return nil
+	}
+
 	if err := raft.RecoverCluster(config, s, logStore, stableStore, snapshots, t, c); err != nil {
 		return err
 	}
@@ -221,33 +252,25 @@ func (s *Store) recoverCluster(config *raft.Config, logStore raft.LogStore, stab
 	return nil
 }
 
-// ReadPeersJSON consumes a legacy peers.json file in the format of the old JSON
-// peer store and creates a new-style configuration structure. This can be used
-// to migrate this data or perform manual recovery when running protocol versions
-// that can interoperate with older, unversioned Raft servers. This should not be
-// used once server IDs are in use, because the old peers.json file didn't have
-// support for these, nor non-voter suffrage types.
-func ReadPeersJSON(path string) (raft.Configuration, error) {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return raft.Configuration{}, err
+func (s *Store) tryJoinLeader(c raft.Configuration) bool {
+	leaderID := model.NodeID("")
+
+	for _, server := range c.Servers {
+		nodeID := model.NodeID(server.ID)
+		if r := s.getNodeState(nodeID); r.OK && r.Msg == "Leader" {
+			leaderID = nodeID
+		}
 	}
 
-	var peers []ConfigEntry
-
-	dec := json.NewDecoder(bytes.NewReader(buf))
-	if err := dec.Decode(&peers); err != nil {
-		return raft.Configuration{}, err
+	if leaderID == "" {
+		return false
 	}
 
-	// Map it into the new-style configuration structure. We can only specify
-	// voter roles here, and the ID has to be the same as the address.
-	c := raft.Configuration{}
-	for _, peer := range peers {
-		c.Servers = append(c.Servers, raft.Server{Suffrage: raft.Voter, ID: peer.ID, Address: peer.Address})
+	if err := model.Join(leaderID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID); err == nil {
+		return true
 	}
 
-	return c, nil
+	return false
 }
 
 func (s *Store) createTransport() (*raft.NetworkTransport, error) {
@@ -317,6 +340,21 @@ func (s *Store) Delete(key string) error {
 	return f.Error()
 }
 
+// Remove removes the node, with the given nodeID, from the cluster.
+func (s *Store) Remove(nodeID string) error {
+	if s.raft.State() != raft.Leader {
+		return ErrNotLeader
+	}
+
+	if f := s.raft.RemoveServer(raft.ServerID(nodeID), 0, 0); f.Error() != nil {
+		return f.Error()
+	}
+
+	_ = s.writeConfigEntries()
+
+	return nil
+}
+
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
 func (s *Store) Join(nodeID, addr string) error {
@@ -378,7 +416,7 @@ type ConfigEntry struct {
 
 	// NonVoter controls the suffrage. We choose this sense so people
 	// can leave this out and get a Voter by default.
-	NonVoter bool `json:"non_voter"`
+	Suffrage string `json:"suffrage"`
 }
 
 func (s *Store) writeConfigEntries() error {
@@ -386,7 +424,7 @@ func (s *Store) writeConfigEntries() error {
 	entries := make([]ConfigEntry, len(servers))
 
 	for i, server := range servers {
-		entries[i] = ConfigEntry{ID: server.ID, Address: server.Address, NonVoter: false}
+		entries[i] = ConfigEntry{ID: server.ID, Address: server.Address, Suffrage: server.Suffrage.String()}
 	}
 
 	entriesJSON, err := json.Marshal(entries)
@@ -397,6 +435,51 @@ func (s *Store) writeConfigEntries() error {
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 
 	return ioutil.WriteFile(peerFile, entriesJSON, 0644)
+}
+
+// ReadPeersJSON consumes a legacy peers.json file in the format of the old JSON
+// peer store and creates a new-style configuration structure. This can be used
+// to migrate this data or perform manual recovery when running protocol versions
+// that can interoperate with older, unversioned Raft servers. This should not be
+// used once server IDs are in use, because the old peers.json file didn't have
+// support for these, nor non-voter suffrage types.
+func ReadPeersJSON(path string) (raft.Configuration, error) {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return raft.Configuration{}, err
+	}
+
+	var peers []ConfigEntry
+
+	dec := json.NewDecoder(bytes.NewReader(buf))
+	if err := dec.Decode(&peers); err != nil {
+		return raft.Configuration{}, err
+	}
+
+	// Map it into the new-style configuration structure. We can only specify
+	// voter roles here, and the ID has to be the same as the address.
+	c := raft.Configuration{}
+	for _, peer := range peers {
+		c.Servers = append(c.Servers, raft.Server{
+			Suffrage: ParseSuffrage(peer.Suffrage),
+			ID:       peer.ID, Address: peer.Address},
+		)
+	}
+
+	return c, nil
+}
+
+func ParseSuffrage(s string) raft.ServerSuffrage {
+	switch s {
+	case "Voter":
+		return raft.Voter
+	case "Nonvoter":
+		return raft.Nonvoter
+	case "Staging":
+		return raft.Staging
+	default:
+		return raft.Voter
+	}
 }
 
 // LeaderAddr returns the address of the current leader. Returns a

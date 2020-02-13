@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -127,6 +128,9 @@ func (r NodeID) URL(relativePath string) string { return BindAddr(r.HTTPAddr()).
 // URLRaftState is http://httpAddr/raft/join
 func (r NodeID) URLRaftState() string { return r.URL("/raft/state") }
 
+// URLRaftState is http://httpAddr/raft/join
+func (r NodeID) URLRaftJoin() string { return r.URL("/raft/join") }
+
 // URLRaftJoin is http://httpAddr/raft/join
 func (a BindAddr) URLRaftJoin() string { return a.URL("/raft/join") }
 
@@ -219,23 +223,33 @@ func (a *Arg) Join() error {
 			time.Sleep(10 * time.Second) // nolint gomnd
 		}
 
-		joinURL := BindAddr(a.JoinAddrSlice[i%addrLen]).URLRaftJoin()
-		log.Printf("joinURL %s\n", joinURL)
+		joinAddr := a.JoinAddrSlice[i%addrLen]
 
-		r := &Rsp{}
-		stateCode, resp, err := util.PostJSON(joinURL, JoinRequest{Addr: a.RaftAddr, NodeID: a.NodeID}, r)
-		log.Printf("join response %d %s\n", stateCode, resp)
-
-		if err != nil {
-			log.Printf("joined error %s\n", err.Error())
-
-			continue
-		}
-
-		if r.OK {
-			return nil
+		if err := Join(joinAddr, a.RaftAddr, a.NodeID); err == nil {
+			break
 		}
 	}
 
 	return fmt.Errorf("failed to join %s", a.JoinAddrs)
+}
+
+func Join(joinAddr, raftAddr string, nodeID NodeID) error {
+	joinURL := BindAddr(joinAddr).URLRaftJoin()
+	log.Printf("joinURL %s\n", joinURL)
+
+	r := &Rsp{}
+	stateCode, resp, err := util.PostJSON(joinURL, JoinRequest{Addr: raftAddr, NodeID: nodeID}, r)
+	log.Printf("join response %d %s\n", stateCode, resp)
+
+	if err != nil {
+		log.Printf("joined error %s\n", err.Error())
+
+		return err
+	}
+
+	if r.OK {
+		return nil
+	}
+
+	return errors.New(r.Msg)
 }

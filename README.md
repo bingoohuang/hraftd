@@ -65,6 +65,12 @@ hraftd -rjoin :11000 -haddr :11001
 hraftd -rjoin :11000 -haddr :11002
 ```
 
+or user supervisord
+
+```bash
+supervisord -c supervisord.ini
+```
+
 This example shows each hraftd node running on the same host, so each node must listen on different ports.
 This would not be necessary if each node ran on a different host.
 
@@ -122,28 +128,28 @@ output:
 {
   "current": {
     "address": ":12000",
-    "nodeID": ":11000,:12000",
+    "id": ":11000,:12000",
     "state": "Follower"
   },
   "leader": {
     "address": ":12002",
-    "nodeID": ":11002,:12002",
+    "id": ":11002,:12002",
     "state": "Leader"
   },
   "servers": [
     {
       "address": ":12000",
-      "nodeID": ":11000,:12000",
+      "id": ":11000,:12000",
       "state": "Follower"
     },
     {
       "address": ":12001",
-      "nodeID": ":11001,:12001",
+      "id": ":11001,:12001",
       "state": "Follower"
     },
     {
       "address": ":12002",
-      "nodeID": ":11002,:12002",
+      "id": ":11002,:12002",
       "state": "Leader"
     }
   ]

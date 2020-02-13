@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/bingoohuang/hraftd/util"
 	"github.com/hashicorp/raft"
@@ -11,7 +12,7 @@ import (
 // Peer defines the peers information
 type Peer struct {
 	Address string `json:"address"`
-	NodeID  NodeID `json:"nodeID"`
+	NodeID  NodeID `json:"id"`
 	State   string `json:"state"`
 }
 
@@ -61,14 +62,20 @@ type Store interface {
 	// Join joins the node, identified by nodeID and reachable at addr, to the cluster.
 	Join(nodeID string, addr string) error
 
+	// Remove removes node from the cluster
+	Remove(nodeID string) error
+
 	// RaftStats returns the raft stats
-	RaftStats() map[string]string
+	RaftStats() map[string]interface{}
 
 	// Cluster returns the raft cluster servers
 	Cluster() (RaftCluster, error)
 
 	// LeadServer returns the raft lead server
 	LeadServer() (Peer, error)
+
+	// WaitForLeader blocks until a leader is detected, or the timeout expires.
+	WaitForLeader(timeout time.Duration) (string, error)
 
 	// LeaderCh is used to get a channel which delivers signals on
 	// acquiring or losing leadership. It sends true if we become

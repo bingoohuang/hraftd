@@ -4,6 +4,8 @@ package httpd
 
 import (
 	"encoding/json"
+	"errors"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -50,8 +52,12 @@ func (s *Service) Start() (err error) {
 		}
 	}()
 
-	if err := s.Arg.Join(); err != nil {
-		log.Fatalf("failed to join at %s: %s\n", s.Arg.JoinAddrs, err.Error())
+	leader, _ := s.Store.WaitForLeader(10 * time.Second) // nolint gomnd
+
+	if leader == "" {
+		if err := s.Arg.Join(); err != nil {
+			log.Fatalf("failed to join at %s: %s\n", s.Arg.JoinAddrs, err.Error())
+		}
 	}
 
 	return nil
@@ -78,28 +84,29 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) {
-	var m model.JoinRequest
-	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		util.WriteAsJSON(model.Rsp{OK: false, Msg: err.Error()}, w)
-		return
+func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case "/raft/health":
+		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
+			util.WriteAsText("OK", w)
+		}, w, r)
+	case "/raft/join":
+		CheckMethodE("POST", s.tryForwardToLeaderFn(s.handleJoin), w, r)
+	case "/raft/remove":
+		CheckMethodE("DELETE", s.tryForwardToLeaderFn(s.handleRemove), w, r)
+	case "/raft/stats":
+		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
+			util.WriteAsJSON(s.Store.RaftStats(), w)
+		}, w, r)
+	case "/raft/state":
+		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
+			util.WriteAsJSON(model.Rsp{OK: true, Msg: s.Store.NodeState()}, w)
+		}, w, r)
+	case "/raft/cluster":
+		CheckMethodE("GET", s.handleCluster, w, r)
+	default:
+		w.WriteHeader(http.StatusNotFound)
 	}
-
-	m.Fix(util.EmptyThen(r.Header.Get(util.XOriginRemoteAddr), r.RemoteAddr))
-
-	log.Printf("received join request for remote node %s at %s\n", m.NodeID, m.Addr)
-
-	if err := s.Store.Join(string(m.NodeID), m.Addr); err != nil {
-		errMsg := err.Error()
-		log.Printf("node %s at %s joined failed %s\n", m.NodeID, m.Addr, errMsg)
-		util.WriteAsJSON(model.Rsp{OK: false, Msg: errMsg}, w)
-
-		return
-	}
-
-	log.Printf("node %s at %s joined successfully\n", m.NodeID, m.Addr)
-
-	util.WriteAsJSON(model.Rsp{OK: true, Msg: "OK"}, w)
 }
 
 func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +132,53 @@ func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) error {
+	var m model.JoinRequest
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		return err
+	}
+
+	m.Fix(util.EmptyThen(r.Header.Get(util.XOriginRemoteAddr), r.RemoteAddr))
+
+	log.Printf("received join request for remote node %s at %s\n", m.NodeID, m.Addr)
+
+	if err := s.Store.Join(string(m.NodeID), m.Addr); err != nil {
+		return err
+	}
+
+	log.Printf("node %s at %s joined successfully\n", m.NodeID, m.Addr)
+
+	util.WriteAsJSON(model.Rsp{OK: true, Msg: "OK"}, w)
+
+	return nil
+}
+
+// handleRemove handles cluster-remove requests.
+func (s *Service) handleRemove(w http.ResponseWriter, r *http.Request) error {
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+
+	m := map[string]string{}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
+	}
+
+	remoteID, ok := m["id"]
+	if !ok {
+		return errors.New("ID not found")
+	}
+
+	if err := s.Store.Remove(remoteID); err != nil {
+		return err
+	}
+
+	util.WriteAsJSON(model.Rsp{OK: true, Msg: "OK"}, w)
+
+	return nil
 }
 
 func getKey(r *http.Request, w http.ResponseWriter) (string, bool) {
@@ -156,6 +210,9 @@ func (s *Service) doPost(w http.ResponseWriter, r *http.Request) {
 // ServeHTTPFn defines ServeHTTP function prototype.
 type ServeHTTPFn func(w http.ResponseWriter, r *http.Request)
 
+// ServeHTTPFn defines ServeHTTP function prototype.
+type ServeHTTPFnE func(w http.ResponseWriter, r *http.Request) error
+
 // CheckMethod checks the method and invoke f.
 func CheckMethod(m string, f ServeHTTPFn, w http.ResponseWriter, r *http.Request) {
 	if r.Method == m {
@@ -165,7 +222,20 @@ func CheckMethod(m string, f ServeHTTPFn, w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (s *Service) tryForwardToLeaderFn(f ServeHTTPFn) ServeHTTPFn {
+// CheckMethod checks the method and invoke f.
+func CheckMethodE(m string, f ServeHTTPFnE, w http.ResponseWriter, r *http.Request) {
+	if r.Method != m {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+
+		return
+	}
+
+	if err := f(w, r); err != nil {
+		util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
+	}
+}
+
+func (s *Service) tryForwardToLeaderFn(f ServeHTTPFnE) ServeHTTPFnE {
 	if s.Store.IsLeader() {
 		return f
 	}
@@ -176,67 +246,41 @@ func (s *Service) tryForwardToLeaderFn(f ServeHTTPFn) ServeHTTPFn {
 func (s *Service) tryForwardToLeader(f ServeHTTPFn, w http.ResponseWriter, r *http.Request) {
 	if s.Store.IsLeader() {
 		f(w, r)
-	} else {
-		s.forwardToLeader(w, r)
+	} else if err := s.forwardToLeader(w, r); err != nil {
+		util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
 	}
 }
 
-func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) {
+func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error {
 	leader, err := s.Store.LeadServer()
 	if err != nil {
-		log.Printf("failed to get raft leader: %v\n", err)
-		util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
-
-		return
+		return err
 	}
 
 	addr := leader.NodeID.HTTPAddr()
 	if addr == "" {
-		log.Printf("failed to get raft leader\n")
-		util.WriteAsJSON(model.Rsp{Msg: "leader N/A"}, w)
-
-		return
+		return errors.New("failed to get raft leader")
 	}
 
 	log.Printf("forward %s to leader %s\n", r.URL.String(), addr)
 
 	if xor := r.Header.Get(util.XOriginRemoteAddr); xor != "" {
-		log.Printf("forward two times not allowed\n")
-		util.WriteAsJSON(model.Rsp{Msg: "forward two times not allowed"}, w)
-
-		return
+		return errors.New("forward two times not allowed")
 	}
 
 	p := util.ReverseProxy(r.URL.Path, addr, r.URL.Path, 10*time.Second) // nolint gomnd
 	p.ServeHTTP(w, r)
+
+	return nil
 }
 
-func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
-	switch r.URL.Path {
-	case "/raft/health":
-		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
-			util.WriteAsText("OK", w)
-		}, w, r)
-	case "/raft/join":
-		CheckMethod("POST", s.tryForwardToLeaderFn(s.handleJoin), w, r)
-	case "/raft/stats":
-		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
-			util.WriteAsJSON(s.Store.RaftStats(), w)
-		}, w, r)
-	case "/raft/state":
-		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
-			util.WriteAsJSON(model.Rsp{OK: true, Msg: s.Store.NodeState()}, w)
-		}, w, r)
-	case "/raft/cluster":
-		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
-			if servers, err := s.Store.Cluster(); err != nil {
-				log.Printf("failed to get raft state: %v\n", err)
-				util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
-			} else {
-				util.WriteAsJSON(servers, w)
-			}
-		}, w, r)
-	default:
-		w.WriteHeader(http.StatusNotFound)
+func (s *Service) handleCluster(w http.ResponseWriter, _ *http.Request) error {
+	servers, err := s.Store.Cluster()
+	if err != nil {
+		return err
 	}
+
+	util.WriteAsJSON(servers, w)
+
+	return nil
 }
