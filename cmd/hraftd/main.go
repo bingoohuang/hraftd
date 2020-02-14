@@ -74,12 +74,24 @@ func tick(c model.RaftCluster) {
 		}
 	}
 
+	serverLen := len(availableServers)
+
 	// demo 10 jobs
 	for i := 0; i < 10; i++ {
-		jobIndex := i % len(availableServers)
-		peer := availableServers[jobIndex]
-
 		r := &JobRsp{}
-		peer.DispatchJob("/myjob", JobReq{ID: fmt.Sprintf("ID：%d", i)}, r)
+		req := JobReq{ID: fmt.Sprintf("ID：%d", i)}
+
+		if serverLen > 0 {
+			jobIndex := i % serverLen
+			peer := availableServers[jobIndex]
+			peer.DispatchJob("/myjob", req, r)
+		} else {
+			rsp, err := myJob(&req)
+			if err != nil {
+				fmt.Printf("process locally error %v\n", err)
+			} else {
+				fmt.Printf("process locally successfully, rsp :%+v\n", rsp)
+			}
+		}
 	}
 }
