@@ -268,8 +268,7 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error 
 		return errors.New("forward two times not allowed")
 	}
 
-	p := util.ReverseProxy(r.URL.Path, addr, r.URL.Path, 10*time.Second) // nolint gomnd
-	p.ServeHTTP(w, r)
+	util.ReverseProxy(addr, r.URL.Path, 10*time.Second).ServeHTTP(w, r) // nolint gomnd
 
 	return nil
 }

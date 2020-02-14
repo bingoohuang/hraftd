@@ -13,8 +13,7 @@ import (
 const XOriginRemoteAddr = "X-Origin-RemoteAddr"
 
 // ReverseProxy reverse proxy originalPath to targetHost with targetPath.
-// And the relative forwarding is rewritten.
-func ReverseProxy(originalPath, targetHost, targetPath string, timeout time.Duration) *httputil.ReverseProxy {
+func ReverseProxy(targetHost, targetPath string, timeout time.Duration) *httputil.ReverseProxy {
 	director := func(req *http.Request) {
 		req.URL.Scheme = "http"
 
@@ -26,20 +25,10 @@ func ReverseProxy(originalPath, targetHost, targetPath string, timeout time.Dura
 		req.Header.Add("X-Origin-Host", req.Header.Get("Host"))
 	}
 
-	modifyResponse := func(r *http.Response) error {
-		respLocationHeader := r.Header.Get("Location")
-		if IsRelativeForward(r.StatusCode, respLocationHeader) {
-			// 301/302时，本地相对路径跳转时，改写Location返回头
-			basePath := strings.TrimRight(originalPath, targetPath)
-			r.Header.Set("Location", basePath+respLocationHeader)
-		}
-
-		return nil
-	}
-	transport := &http.Transport{DialContext: TimeoutDialer(timeout, timeout)}
+	t := &http.Transport{DialContext: TimeoutDialer(timeout, timeout)}
 
 	// 更多可以参见 https://github.com/Integralist/go-reverse-proxy/blob/master/proxy/proxy.go
-	return &httputil.ReverseProxy{Director: director, ModifyResponse: modifyResponse, Transport: transport}
+	return &httputil.ReverseProxy{Director: director, Transport: t}
 }
 
 // IsRelativeForward tells the statusCode is 301/302 and locationHeader is relative
