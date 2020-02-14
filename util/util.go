@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	hjson "github.com/hjson/hjson-go"
 )
@@ -92,4 +93,49 @@ func Hjson(v interface{}) string {
 	hj, _ := hjson.Marshal(v)
 
 	return strings.ReplaceAll(string(hj), "\n", "")
+}
+
+// Ticker defines a ticker.
+type Ticker struct {
+	stop     chan bool
+	tickerFn func()
+	d        time.Duration
+}
+
+// NewTicker creates a new ticker.
+func NewTicker(d time.Duration, tickerFn func()) *Ticker {
+	return &Ticker{stop: make(chan bool, 1), tickerFn: tickerFn, d: d}
+}
+
+// Start starts the ticker.
+func (j *Ticker) Start() {
+	t := time.NewTicker(j.d)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			j.tickerFn()
+		case <-j.stop:
+			return
+		}
+	}
+}
+
+// Stop stops the ticker.
+func (j *Ticker) Stop() {
+	j.stop <- true
+}
+
+const dfmt = "2006-01-02 15:04:05.000"
+
+// FormatTime format time.
+// FormatTime format time.
+func FormatTime(t time.Time) string {
+	return t.Format(dfmt)
+}
+
+// ParseTime parses time.
+func ParseTime(s string) (time.Time, error) {
+	return time.Parse(dfmt, s)
 }

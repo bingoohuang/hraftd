@@ -32,8 +32,8 @@ import (
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
-	leaderWaitDelay     = 100 * time.Millisecond
-	appliedWaitDelay    = 100 * time.Millisecond
+
+	appliedWaitDelay = 100 * time.Millisecond
 )
 
 var (
@@ -101,6 +101,12 @@ func (s *Store) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 // NodeState returns the state of current node
 func (s *Store) NodeState() string { return s.raft.State().String() }
 
+// IsLeader tells the current node is raft leader or not.
+func (s *Store) IsLeader() bool { return s.raft.State() == raft.Leader }
+
+// LeaderAddr returns the address of the current leader. Returns blank if no leader.
+func (s *Store) LeaderAddr() string { return string(s.raft.Leader()) }
+
 // LeadServer returns the raft lead server
 func (s *Store) LeadServer() (model.Peer, error) {
 	leader := s.raft.Leader()
@@ -117,7 +123,7 @@ func (s *Store) LeadServer() (model.Peer, error) {
 
 		peer = model.Peer{
 			Address: string(srv.Address),
-			NodeID:  model.NodeID(srv.ID),
+			ID:      model.NodeID(srv.ID),
 			State:   raft.Leader.String(),
 		}
 
@@ -126,7 +132,7 @@ func (s *Store) LeadServer() (model.Peer, error) {
 		return peer, err
 	}
 
-	if peer.NodeID == "" {
+	if peer.ID == "" {
 		return peer, errors.New("leader NA")
 	}
 
@@ -135,26 +141,26 @@ func (s *Store) LeadServer() (model.Peer, error) {
 
 // Cluster returns the raft cluster state
 func (s *Store) Cluster() (model.RaftCluster, error) {
-	leader := s.raft.Leader()
+	leaderAddress := s.raft.Leader()
 	cluster := model.RaftCluster{
 		Servers: make([]model.Peer, 0),
 	}
 
 	err := s.walkRaftServers(func(srv raft.Server) (bool, error) {
-		peer := model.Peer{Address: string(srv.Address), NodeID: model.NodeID(srv.ID)}
+		peer := model.Peer{Address: string(srv.Address), ID: model.NodeID(srv.ID), Suffrage: srv.Suffrage.String()}
 
-		if leader == srv.Address {
+		if leaderAddress == srv.Address {
 			peer.State = raft.Leader.String()
 			cluster.Leader = peer
 		}
 
-		if s.Arg.NodeID == peer.NodeID {
+		if s.Arg.NodeID == peer.ID {
 			peer.State = s.raft.State().String()
 			cluster.Current = peer
 		}
 
 		if peer.State == "" {
-			if r := s.getNodeState(peer.NodeID); r.OK {
+			if r := s.getNodeState(peer.ID); r.OK {
 				peer.State = r.Msg
 			}
 		}
@@ -206,12 +212,6 @@ func (s *Store) Open() error {
 		return err
 	}
 
-	if raftNodeDirExits {
-		if err := s.recoverCluster(config, logStore, stableStore, snapshots, t); err != nil {
-			return err
-		}
-	}
-
 	r, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, t)
 	if err != nil {
 		return fmt.Errorf("new raft: %s", err)
@@ -224,11 +224,16 @@ func (s *Store) Open() error {
 		s.raft.BootstrapCluster(c)
 	}
 
+	if raftNodeDirExits {
+		if err := s.recoverJoin(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (s *Store) recoverCluster(config *raft.Config, logStore raft.LogStore, stableStore raft.StableStore,
-	snapshots raft.SnapshotStore, t raft.Transport) error {
+func (s *Store) recoverJoin() error {
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 	if !util.PathExists(peerFile) {
 		return nil
@@ -243,9 +248,9 @@ func (s *Store) recoverCluster(config *raft.Config, logStore raft.LogStore, stab
 		return nil
 	}
 
-	if err := raft.RecoverCluster(config, s, logStore, stableStore, snapshots, t, c); err != nil {
-		return err
-	}
+	//if err := raft.RecoverCluster(config, s, logStore, stableStore, snapshots, t, c); err != nil {
+	//	return err
+	//}
 
 	s.logger.Printf("recovered from %s successfully\n", peerFile)
 
@@ -257,7 +262,7 @@ func (s *Store) tryJoinLeader(c raft.Configuration) bool {
 
 	for _, server := range c.Servers {
 		nodeID := model.NodeID(server.ID)
-		if r := s.getNodeState(nodeID); r.OK && r.Msg == "Leader" {
+		if r := s.getNodeState(nodeID); r.OK && r.Msg == model.StateLeader {
 			leaderID = nodeID
 		}
 	}
@@ -311,17 +316,18 @@ func (s *Store) Get(key string) (v string, ok bool) {
 	return
 }
 
-// IsLeader tells the current node is raft leader or not.
-func (s *Store) IsLeader() bool { return s.raft.State() == raft.Leader }
-
 // Set sets the value for the given key.
 func (s *Store) Set(key, value string) error {
 	if !s.IsLeader() {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&model.Command{Op: "set", Key: key, Value: value,
-		Time: time.Now().Format("2006-01-02 15:04:05.000")})
+	b, _ := json.Marshal(&model.Command{
+		Op:    "set",
+		Key:   key,
+		Value: value,
+		Time:  util.FormatTime(time.Now()),
+	})
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
@@ -333,8 +339,11 @@ func (s *Store) Delete(key string) error {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&model.Command{Op: "delete", Key: key,
-		Time: time.Now().Format("2006-01-02 15:04:05.000")})
+	b, _ := json.Marshal(&model.Command{
+		Op:   "delete",
+		Key:  key,
+		Time: util.FormatTime(time.Now()),
+	})
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
@@ -419,14 +428,36 @@ type ConfigEntry struct {
 	Suffrage string `json:"suffrage"`
 }
 
+func (s *Store) writeClusterConfigEntries(cluster model.RaftCluster) error {
+	entries := make([]ConfigEntry, len(cluster.Servers))
+
+	for i, server := range cluster.Servers {
+		entries[i] = ConfigEntry{
+			ID:       raft.ServerID(server.ID),
+			Address:  raft.ServerAddress(server.Address),
+			Suffrage: server.Suffrage,
+		}
+	}
+
+	return s.writePeersJSON(entries)
+}
+
 func (s *Store) writeConfigEntries() error {
 	servers := s.raft.GetConfiguration().Configuration().Servers
 	entries := make([]ConfigEntry, len(servers))
 
 	for i, server := range servers {
-		entries[i] = ConfigEntry{ID: server.ID, Address: server.Address, Suffrage: server.Suffrage.String()}
+		entries[i] = ConfigEntry{
+			ID:       server.ID,
+			Address:  server.Address,
+			Suffrage: server.Suffrage.String(),
+		}
 	}
 
+	return s.writePeersJSON(entries)
+}
+
+func (s *Store) writePeersJSON(entries []ConfigEntry) error {
 	entriesJSON, err := json.Marshal(entries)
 	if err != nil {
 		return err
@@ -483,13 +514,9 @@ func ParseSuffrage(s string) raft.ServerSuffrage {
 	}
 }
 
-// LeaderAddr returns the address of the current leader. Returns a
-// blank string if there is no leader.
-func (s *Store) LeaderAddr() string { return string(s.raft.Leader()) }
-
 // WaitForLeader blocks until a leader is detected, or the timeout expires.
 func (s *Store) WaitForLeader(timeout time.Duration) (string, error) {
-	tck := time.NewTicker(leaderWaitDelay)
+	tck := time.NewTicker(3 * time.Second) // nolint gomnd
 	tmr := time.NewTimer(timeout)
 
 	defer tck.Stop()
@@ -501,10 +528,60 @@ func (s *Store) WaitForLeader(timeout time.Duration) (string, error) {
 			if l := s.LeaderAddr(); l != "" {
 				return l, nil
 			}
+
+			s.joinNodesFromLeader()
 		case <-tmr.C:
-			return "", fmt.Errorf("timeout expired")
+			s.logger.Printf("waitForLeader timeout %v expired\n", timeout)
+			return "", fmt.Errorf("WaitForLeader timeout expired")
 		}
 	}
+}
+
+func (s *Store) joinNodesFromLeader() {
+	cluster, err := s.Cluster()
+	if err != nil {
+		return
+	}
+
+	s.tryFindAndJoinLeader(cluster)
+}
+
+func (s *Store) tryFindAndJoinLeader(cluster model.RaftCluster) {
+	leader, _ := s.findLeader(cluster)
+
+	if leader.ID != "" {
+		s.logger.Printf("Leader found %+v\n", leader)
+		_ = model.Join(leader.ID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID)
+
+		return
+	}
+
+	s.logger.Printf("Leader not found\n")
+}
+
+func (s *Store) findLeader(cluster model.RaftCluster) (model.Peer, bool) {
+	for _, peer := range cluster.Servers {
+		if peer.State == model.StateLeader {
+			return peer, true
+		}
+
+		cl, err := model.Cluster(peer.ID)
+		if err != nil {
+			continue
+		}
+
+		if cl.Leader.State == model.StateLeader {
+			return cl.Leader, true
+		}
+
+		for _, n := range cl.Servers {
+			if n.State == model.StateLeader {
+				return n, true
+			}
+		}
+	}
+
+	return model.Peer{}, false
 }
 
 // WaitForApplied waits for all Raft log entries to to be applied to the
@@ -562,14 +639,41 @@ func (s *Store) Apply(l *raft.Log) interface{} {
 
 	switch c.Op {
 	case "set":
+		t, err := util.ParseTime(c.Time)
+		if err != nil || t.Before(time.Now().Add(-100*time.Second)) { // nolint gomnd
+			s.logger.Printf("too old command  %+v, ignored\n", c)
+			return nil
+		}
+
+		if c.Key == "/raft/cluster" {
+			s.processSetRaftCluster(c)
+
+			return nil
+		}
+
 		return s.lockApplyOp(func() interface{} { s.m[c.Key] = c.Value; return nil })
 	case "delete":
 		return s.lockApplyOp(func() interface{} { delete(s.m, c.Key); return nil })
 	default:
-		s.logger.Printf("unrecognized Command op: %+v", c)
+		s.logger.Printf("unrecognized Command op: %+v\n", c)
 	}
 
 	return nil
+}
+
+func (s *Store) processSetRaftCluster(c model.Command) {
+	v := model.RaftCluster{}
+	if err := json.Unmarshal([]byte(c.Value), &v); err != nil {
+		s.logger.Printf("json.Unmarshal error %+v\n", err)
+	} else if err := s.writeClusterConfigEntries(v); err != nil {
+		s.logger.Printf("writeClusterConfigEntries error %+v\n", err)
+	} else {
+		s.logger.Printf("writeClusterConfigEntries successfully\n")
+
+		if s.LeaderAddr() == "" {
+			s.tryFindAndJoinLeader(v)
+		}
+	}
 }
 
 // Snapshot returns a snapshot of the key-value store.

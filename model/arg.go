@@ -108,7 +108,7 @@ func (a *Arg) fixAddr() {
 	}
 }
 
-// NodeID is the raft node ID
+// ID is the raft node ID
 type NodeID string
 
 // BindAddr is the address for bind
@@ -125,7 +125,10 @@ func (a BindAddr) URL(path string) string {
 // URL returns the HTTP access URL with relative path
 func (r NodeID) URL(relativePath string) string { return BindAddr(r.HTTPAddr()).URL(relativePath) }
 
-// URLRaftState is http://httpAddr/raft/join
+// URLRaftCluster is http://httpAddr/raft/cluster
+func (r NodeID) URLRaftCluster() string { return r.URL("/raft/cluster") }
+
+// URLRaftState is http://httpAddr/raft/state
 func (r NodeID) URLRaftState() string { return r.URL("/raft/state") }
 
 // URLRaftJoin is http://httpAddr/raft/join
@@ -134,10 +137,10 @@ func (r NodeID) URLRaftJoin() string { return r.URL("/raft/join") }
 // URLRaftJoin is http://httpAddr/raft/join
 func (a BindAddr) URLRaftJoin() string { return a.URL("/raft/join") }
 
-// HTTPAddr returns the HTTP bind address in the NodeID
+// HTTPAddr returns the HTTP bind address in the ID
 func (r NodeID) HTTPAddr() string { return strings.SplitN(string(r), ",", -1)[0] }
 
-// RaftAddr returns the Raft bind addr in the NodeID
+// RaftAddr returns the Raft bind addr in the ID
 func (r NodeID) RaftAddr() string { return strings.SplitN(string(r), ",", -1)[1] }
 
 // Fix fixes the ID component to full host:port
@@ -227,7 +230,7 @@ func (a *Arg) Join() error {
 		joinAddr := a.JoinAddrSlice[i%addrLen]
 
 		if err := Join(joinAddr, a.RaftAddr, a.NodeID); err == nil {
-			break
+			return nil
 		}
 	}
 
@@ -254,4 +257,15 @@ func Join(joinAddr, raftAddr string, nodeID NodeID) error {
 	}
 
 	return errors.New(r.Msg)
+}
+
+func Cluster(nodeID NodeID) (v RaftCluster, err error) {
+	clusterURL := nodeID.URLRaftCluster()
+	log.Printf("GET Cluster %s\n", clusterURL)
+
+	rsp, err := util.GetJSON(clusterURL, &v)
+
+	log.Printf("GET Cluster %s, result %+v\n", clusterURL, rsp)
+
+	return v, err
 }

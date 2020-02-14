@@ -24,7 +24,7 @@ func Test_NewServer(t *testing.T) {
 		RaftAddr: ":0",
 		HTTPAddr: ":0",
 	}
-	s := &testServer{&Service{Arg: arg, Store: store}}
+	s := &testServer{&Service{Arg: arg, store: store}}
 
 	if err := s.Start(); err != nil {
 		t.Fatalf("failed to start HTTP service: %s", err)
