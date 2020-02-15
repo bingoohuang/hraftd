@@ -43,7 +43,7 @@ func Create(arg *model.Arg) *Service {
 	return &Service{Arg: arg, store: s, Dealers: make(map[string]Dealer), LeaderCh: make(chan bool, 1)}
 }
 
-// Start starts the service.
+// StartAsync starts the service.
 func (s *Service) Start() (err error) {
 	if s.Ln, err = net.Listen("tcp", s.Arg.HTTPAddr); err != nil {
 		return err

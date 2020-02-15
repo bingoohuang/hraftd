@@ -107,8 +107,13 @@ func NewTicker(d time.Duration, tickerFn func()) *Ticker {
 	return &Ticker{stop: make(chan bool, 1), tickerFn: tickerFn, d: d}
 }
 
-// Start starts the ticker.
-func (j *Ticker) Start() {
+// StartAsync starts the ticker.
+func (j *Ticker) StartAsync() {
+	go j.start()
+}
+
+// start starts the ticker.
+func (j *Ticker) start() {
 	t := time.NewTicker(j.d)
 	defer t.Stop()
 
@@ -122,9 +127,12 @@ func (j *Ticker) Start() {
 	}
 }
 
-// Stop stops the ticker.
-func (j *Ticker) Stop() {
-	j.stop <- true
+// StopAsync stops the ticker.
+func (j *Ticker) StopAsync() {
+	select {
+	case j.stop <- true:
+	default:
+	}
 }
 
 const dfmt = "2006-01-02 15:04:05.000"

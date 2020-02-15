@@ -58,9 +58,9 @@ func leaderChanging(h *httpd.Service) {
 
 	for leader := range c {
 		if leader {
-			tik.Start()
+			tik.StartAsync()
 		} else {
-			tik.Stop()
+			tik.StopAsync()
 		}
 	}
 }
