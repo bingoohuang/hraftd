@@ -29,7 +29,7 @@ func main() {
 	}
 
 	h := httpd.Create(arg)
-	if err := h.RegisterTaskDealer("/myjob", myJob, (*JobReq)(nil)); err != nil {
+	if err := h.RegisterJobDealer("/myjob", myJob, (*JobReq)(nil)); err != nil {
 		log.Fatalf("failed to register /myjob, error %v\n", err)
 	}
 
@@ -78,20 +78,44 @@ func tick(c model.RaftCluster) {
 
 	// demo 10 jobs
 	for i := 0; i < 10; i++ {
-		r := &JobRsp{}
 		req := JobReq{ID: fmt.Sprintf("ID：%d", i)}
 
 		if serverLen > 0 {
 			jobIndex := i % serverLen
 			peer := availableServers[jobIndex]
-			peer.DispatchJob("/myjob", req, r)
+			r := &JobRsp{}
+			err := peer.DispatchJob("/myjob", req, r)
+
+			if err != nil {
+				fmt.Printf("DispatchJob error %v\n", err)
+			} else {
+				fmt.Printf("DispatchJob successfully, rsp :%+v\n", r)
+			}
 		} else {
 			rsp, err := myJob(&req)
 			if err != nil {
 				fmt.Printf("process locally error %v\n", err)
 			} else {
-				fmt.Printf("process locally successfully, rsp :%+v\n", rsp)
+				fmt.Printf("process locally successfully, rsp :%+v\n", rsp.(JobRsp))
 			}
 		}
 	}
+}
+
+type JobReq struct {
+	ID string `json:"id"`
+}
+
+type JobRsp struct {
+	OK  string `json:"ok"`
+	Msg string `json:"msg"`
+}
+
+func myJob(req interface{}) (interface{}, error) {
+	r := req.(*JobReq)
+
+	return JobRsp{
+		OK:  "OK",
+		Msg: r.ID + " is processed",
+	}, nil
 }

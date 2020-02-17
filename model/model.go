@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"time"
 
@@ -18,20 +17,6 @@ type Peer struct {
 	ID       NodeID `json:"id"`
 	State    string `json:"state"`
 	Suffrage string `json:"suffrage"`
-}
-
-func (p Peer) DispatchJob(path string, req interface{}, rsp interface{}) {
-	jobURL := p.ID.URL("/job" + path)
-	log.Printf("dispatch job %+v to %s\n", req, jobURL)
-
-	stateCode, resp, err := util.PostJSON(jobURL, req, rsp)
-	log.Printf("job response %d %s\n", stateCode, resp)
-
-	if err != nil {
-		log.Printf("joined error %s\n", err.Error())
-	} else {
-		log.Printf("statecode:%d, rsp:%+v\n", stateCode, rsp)
-	}
 }
 
 // RaftCluster is raft cluster
