@@ -55,6 +55,29 @@ func DefineFlags(p FlagProvider) *Arg {
 	return &app
 }
 
+// ViperProvider defines the args getter provider.
+type ViperProvider interface {
+	SetDefault(key string, value interface{})
+	GetBool(key string) bool
+	GetString(key string) string
+}
+
+// CreateArg creates Arg by ViperProvider implementation.
+func CreateArg(p ViperProvider) *Arg {
+	var app Arg
+
+	p.SetDefault("rmem", true)
+	app.InMem = p.GetBool("rmem")
+	app.HTTPAddr = p.GetString("haddr")
+	app.HTTPAdv = p.GetString("hadv")
+	app.RaftAddr = p.GetString("raddr")
+	app.RaftAdv = p.GetString("radv")
+	app.RaftNodeDir = p.GetString("rdir")
+	app.JoinAddrs = p.GetString("rjoin")
+
+	return &app
+}
+
 // WaitInterrupt waits on interrupt signal
 func WaitInterrupt() {
 	terminate := make(chan os.Signal, 1)
