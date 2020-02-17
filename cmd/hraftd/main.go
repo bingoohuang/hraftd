@@ -84,12 +84,12 @@ func tick(c model.RaftCluster) {
 			jobIndex := i % serverLen
 			peer := availableServers[jobIndex]
 			r := &JobRsp{}
-			err := peer.DispatchJob("/myjob", req, r)
+			err := peer.DistributeJob("/myjob", req, r)
 
 			if err != nil {
-				fmt.Printf("DispatchJob error %v\n", err)
+				fmt.Printf("DistributeJob error %v\n", err)
 			} else {
-				fmt.Printf("DispatchJob successfully, rsp :%+v\n", r)
+				fmt.Printf("DistributeJob successfully, rsp :%+v\n", r)
 			}
 		} else {
 			rsp, err := myJob(&req)

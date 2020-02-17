@@ -15,13 +15,8 @@ type JobRsp struct {
 	Data json.RawMessage `json:"data,omitempty"`
 }
 
-const (
-	HraftdRaftPath  = "/hraftd/raft"
-	HraftdKeyPath   = "/hraftd/key"
-	HraftdDoJobPath = "/hraftd/dojob"
-)
-
-func (p Peer) DispatchJob(path string, req interface{}, rsp interface{}) error {
+// DistributeJob distributes job to the peer node in the raft clusters
+func (p Peer) DistributeJob(path string, req interface{}, rsp interface{}) error {
 	jobURL := p.ID.URL(HraftdDoJobPath + path)
 	log.Printf("dispatch job %+v to %s\n", req, jobURL)
 
@@ -30,11 +25,11 @@ func (p Peer) DispatchJob(path string, req interface{}, rsp interface{}) error {
 	log.Printf("job response %d %s\n", stateCode, resp)
 
 	if err != nil {
-		log.Printf("joined error %s\n", err.Error())
+		log.Printf("fail to post job error %s\n", err.Error())
 		return err
 	}
 
-	log.Printf("statecode:%d, rsp:%+v\n", stateCode, jobRsp)
+	log.Printf("statecode:%d, rsp OK: %v, Msg:%s\n", stateCode, jobRsp.OK, jobRsp.Msg)
 
 	if !jobRsp.OK {
 		return errors.New(jobRsp.Msg)
