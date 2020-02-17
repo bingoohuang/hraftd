@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	arg := model.DefineFlags()
+	arg := model.DefineFlags(flag.CommandLine)
 
 	flag.Parse()
 	arg.Fix()

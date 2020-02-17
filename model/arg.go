@@ -2,7 +2,6 @@ package model
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -35,17 +34,23 @@ type Arg struct {
 	JoinAddrSlice    []string
 }
 
+// FlagProvider defines the interface for flag definitions required for hraftd.
+type FlagProvider interface {
+	BoolVar(p *bool, name string, value bool, usage string)
+	StringVar(p *string, name string, value string, usage string)
+}
+
 // DefineFlags define raft args
-func DefineFlags() *Arg {
+func DefineFlags(p FlagProvider) *Arg {
 	var app Arg
 
-	flag.BoolVar(&app.InMem, "rmem", false, "Use in-memory storage for Raft")
-	flag.StringVar(&app.HTTPAddr, "haddr", "", "HTTP server bind address")
-	flag.StringVar(&app.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
-	flag.StringVar(&app.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
-	flag.StringVar(&app.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
-	flag.StringVar(&app.RaftNodeDir, "rdir", "", "Raft data directory, default to ~/.hraftd/{id}")
-	flag.StringVar(&app.JoinAddrs, "rjoin", "", "Set raft cluster join addresses separated by comma, if any")
+	p.BoolVar(&app.InMem, "rmem", false, "Use in-memory storage for Raft")
+	p.StringVar(&app.HTTPAddr, "haddr", "", "HTTP server bind address")
+	p.StringVar(&app.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
+	p.StringVar(&app.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
+	p.StringVar(&app.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
+	p.StringVar(&app.RaftNodeDir, "rdir", "", "Raft data directory, default to ~/.hraftd/{id}")
+	p.StringVar(&app.JoinAddrs, "rjoin", "", "Set raft cluster join addresses separated by comma, if any")
 
 	return &app
 }
