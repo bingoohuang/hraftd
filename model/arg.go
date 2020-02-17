@@ -44,7 +44,7 @@ type FlagProvider interface {
 func DefineFlags(p FlagProvider) *Arg {
 	var app Arg
 
-	p.BoolVar(&app.InMem, "rmem", false, "Use in-memory storage for Raft")
+	p.BoolVar(&app.InMem, "rmem", true, "Use in-memory storage for Raft")
 	p.StringVar(&app.HTTPAddr, "haddr", "", "HTTP server bind address")
 	p.StringVar(&app.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
 	p.StringVar(&app.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
@@ -228,8 +228,8 @@ func (a *Arg) Join() error {
 
 	for i := 0; i < 10; i++ {
 		if i > 0 {
-			log.Printf("retry after 10s\n")
-			time.Sleep(10 * time.Second) // nolint gomnd
+			log.Printf("retry after 1s\n")
+			time.Sleep(1 * time.Second) // nolint gomnd
 		}
 
 		joinAddr := a.JoinAddrSlice[i%addrLen]

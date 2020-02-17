@@ -290,19 +290,19 @@ func (s *Store) createTransport() (*raft.NetworkTransport, error) {
 
 // createStores creates the log store and stable store.
 func (s *Store) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
-	// Create the snapshot store. This allows the Raft to truncate the log.
-	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftNodeDir, retainSnapshotCount, os.Stderr)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("file snapshot store: %s", err)
-	}
-
 	if s.Arg.InMem {
-		return raft.NewInmemStore(), raft.NewInmemStore(), ss, nil
+		return raft.NewInmemStore(), raft.NewInmemStore(), raft.NewInmemSnapshotStore(), nil
 	}
 
 	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftNodeDir, "raft.db"))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("new bolt store: %s", err)
+	}
+
+	// Create the snapshot store. This allows the Raft to truncate the log.
+	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftNodeDir, retainSnapshotCount, os.Stderr)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("file snapshot store: %s", err)
 	}
 
 	return db, db, ss, nil
