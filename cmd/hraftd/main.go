@@ -6,13 +6,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/bingoohuang/hraftd/util"
-
-	"github.com/hashicorp/raft"
-
-	"github.com/bingoohuang/hraftd/model"
-
 	"github.com/bingoohuang/hraftd/httpd"
+	"github.com/bingoohuang/hraftd/model"
+	"github.com/bingoohuang/hraftd/util"
+	"github.com/hashicorp/raft"
 )
 
 func main() {
