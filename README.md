@@ -27,15 +27,15 @@ The reference implementation is a very simple in-memory key-value store.
 You can set/get a key by sending a request to the HTTP bind address (which defaults to `localhost:11000`):
 
 ```bash
-curl localhost:11000/key -d '{"foo": "bar"}'
-curl localhost:11000/key/foo
+curl localhost:11000/hraftd/key -d '{"foo": "bar"}'
+curl localhost:11000/hraftd/key/foo
 ```
 
 or use [httpie](https://httpie.org/)
 
 ```bash
-http :11000/key foo=barst
-http :11000/key/foo
+http :11000/hraftd/key foo=barst
+http :11000/hraftd/key/foo
 ```
 
 ## Running hraftd
@@ -51,8 +51,8 @@ Run your first hraftd node like so:
 You can now set a key and read its value back:
 
 ```bash
-curl localhost:11000/key -d '{"user1": "batman"}'
-curl localhost:11000/key/user1
+curl localhost:11000/hraftd/key -d '{"user1": "batman"}'
+curl localhost:11000/hraftd/key/user1
 ```
 
 ### Bring up a cluster locally
@@ -76,18 +76,18 @@ This would not be necessary if each node ran on a different host.
 
 This tells each new node to join the existing node. Once joined, each node now knows about the key:
 
-`curl localhost:11000/key/user1 localhost:11001/key/user1 localhost:11002/key/user1`
+`curl localhost:11000/hraftd/key/user1 localhost:11001/key/user1 localhost:11002/key/user1`
 
 Furthermore, you can add a second key:
 
-`curl localhost:11000/key -d '{"user2": "robin"}'`
+`curl localhost:11000/hraftd/key -d '{"user2": "robin"}'`
 
 Confirm that the new key has been set like so:
 
 ```bash
-$ curl localhost:11000/key/user2 localhost:11001/key/user2 localhost:11002/key/user2
+$ curl localhost:11000/hraftd/key/user2 localhost:11001/key/user2 localhost:11002/key/user2
 {"user2":"robin"}{"user2":"robin"}{"user2":"robin"}
-$ curl localhost:11000/raft/stats |jq
+$ curl localhost:11000/hraftd/raft/stats |jq
 ```
 
 output:
@@ -137,11 +137,11 @@ output:
 ```
 
 
-`curl localhost:11000/raft/cluster | python -m json.tool`
+`curl localhost:11000/hraftd/raft/cluster | python -m json.tool`
 
 or
 
-`http :11000/raft/cluster`
+`http :11000/hraftd/raft/cluster`
 
 output:
 

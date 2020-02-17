@@ -27,7 +27,7 @@ type Service struct {
 	Dealers  map[string]Dealer
 }
 
-// Create returns an uninitialized HTTP service.
+// Create returns an uninitialized service.
 func Create(arg *model.Arg) *Service {
 	s := store.New(arg)
 
@@ -39,7 +39,30 @@ func Create(arg *model.Arg) *Service {
 }
 
 // StartAsync starts the service.
-func (s *Service) Start() (err error) {
+func (s *Service) Start() error {
+	if err := s.GoStartHTTP(); err != nil {
+		return err
+	}
+
+	return s.StartRaft()
+}
+
+func (s *Service) StartRaft() error {
+	go s.listenLeaderCh()
+
+	if err := s.Arg.Join(); err != nil {
+		log.Fatalf("failed to join at %s: %s\n", s.Arg.JoinAddrs, err.Error())
+	}
+
+	leader, _ := s.store.WaitForLeader(100 * time.Second) // nolint gomnd
+	if leader != "" {
+		return nil
+	}
+
+	return nil
+}
+
+func (s *Service) GoStartHTTP() (err error) {
 	if s.Ln, err = net.Listen("tcp", s.Arg.HTTPAddr); err != nil {
 		return err
 	}
@@ -52,17 +75,6 @@ func (s *Service) Start() (err error) {
 			log.Fatalf("HTTP serve: %s\n", err)
 		}
 	}()
-
-	go s.listenLeaderCh()
-
-	if err := s.Arg.Join(); err != nil {
-		log.Fatalf("failed to join at %s: %s\n", s.Arg.JoinAddrs, err.Error())
-	}
-
-	leader, _ := s.store.WaitForLeader(100 * time.Second) // nolint gomnd
-	if leader != "" {
-		return nil
-	}
 
 	return nil
 }
@@ -79,11 +91,11 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("received request [%s] %s for %s\n", r.Method, path, r.RemoteAddr)
 
 	switch {
-	case strings.HasPrefix(path, "/key"):
+	case strings.HasPrefix(path, model.HraftdKeyPath):
 		s.handleKeyRequest(w, r)
-	case strings.HasPrefix(path, "/raft"):
+	case strings.HasPrefix(path, model.HraftdRaftPath):
 		s.handleRaftRequest(w, r)
-	case strings.HasPrefix(path, "/job"):
+	case strings.HasPrefix(path, model.HraftdDoJobPath):
 		CheckMethodE("POST", s.handleJobRequest, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)

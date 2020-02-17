@@ -321,9 +321,8 @@ func (s *Store) Set(key, value string) error {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&model.Command{
-		Op: "set", Key: key, Value: value, Time: util.FormatTime(time.Now()),
-	})
+	c := &model.Command{Op: "set", Key: key, Value: value, Time: util.FormatTime(time.Now())}
+	b, _ := json.Marshal(c)
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
@@ -335,8 +334,8 @@ func (s *Store) Delete(key string) error {
 		return ErrNotLeader
 	}
 
-	b, _ := json.Marshal(&model.Command{
-		Op: "delete", Key: key, Time: util.FormatTime(time.Now())})
+	c := &model.Command{Op: "delete", Key: key, Time: util.FormatTime(time.Now())}
+	b, _ := json.Marshal(c)
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()

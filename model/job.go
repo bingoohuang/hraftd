@@ -15,8 +15,14 @@ type JobRsp struct {
 	Data json.RawMessage `json:"data,omitempty"`
 }
 
+const (
+	HraftdRaftPath  = "/hraftd/raft"
+	HraftdKeyPath   = "/hraftd/key"
+	HraftdDoJobPath = "/hraftd/dojob"
+)
+
 func (p Peer) DispatchJob(path string, req interface{}, rsp interface{}) error {
-	jobURL := p.ID.URL("/job" + path)
+	jobURL := p.ID.URL(HraftdDoJobPath + path)
 	log.Printf("dispatch job %+v to %s\n", req, jobURL)
 
 	jobRsp := JobRsp{}

@@ -4,30 +4,31 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/bingoohuang/hraftd/model"
 	"github.com/bingoohuang/hraftd/util"
 )
 
 func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
-	switch r.URL.Path {
-	case "/raft/health":
+	switch strings.TrimPrefix(r.URL.Path, model.HraftdRaftPath) {
+	case "/health":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			util.WriteAsText("OK", w)
 		}, w, r)
-	case "/raft/join":
+	case "/join":
 		CheckMethodE("POST", s.tryForwardToLeaderFn(s.handleJoin), w, r)
-	case "/raft/remove":
+	case "/remove":
 		CheckMethodE("DELETE", s.tryForwardToLeaderFn(s.handleRemove), w, r)
-	case "/raft/stats":
+	case "/stats":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			util.WriteAsJSON(s.store.RaftStats(), w)
 		}, w, r)
-	case "/raft/state":
+	case "/state":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
 			util.WriteAsJSON(model.Rsp{OK: true, Msg: s.store.NodeState()}, w)
 		}, w, r)
-	case "/raft/cluster":
+	case "/cluster":
 		CheckMethodE("GET", s.handleCluster, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)

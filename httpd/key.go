@@ -37,13 +37,17 @@ func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func getKey(r *http.Request, w http.ResponseWriter) (string, bool) {
-	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) != 3 { // nolint gomnd
-		w.WriteHeader(http.StatusBadRequest)
-		return "", false
+	key := strings.TrimPrefix(r.URL.Path, model.HraftdKeyPath)
+	key = strings.TrimPrefix(key, "/")
+
+	if key != "" {
+		return key, true
 	}
 
-	return parts[2], true
+	// nolint gomnd
+	w.WriteHeader(http.StatusBadRequest)
+
+	return "", false
 }
 
 func (s *Service) doKeyPost(w http.ResponseWriter, r *http.Request) {

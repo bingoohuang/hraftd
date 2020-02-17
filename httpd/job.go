@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Service) handleJobRequest(w http.ResponseWriter, r *http.Request) error {
-	path := strings.TrimPrefix(r.URL.String(), "/job")
+	path := strings.TrimPrefix(r.URL.String(), model.HraftdDoJobPath)
 	dealer, ok := s.Dealers[path]
 
 	if !ok {

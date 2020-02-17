@@ -126,16 +126,16 @@ func (a BindAddr) URL(path string) string {
 func (r NodeID) URL(relativePath string) string { return BindAddr(r.HTTPAddr()).URL(relativePath) }
 
 // URLRaftCluster is http://httpAddr/raft/cluster
-func (r NodeID) URLRaftCluster() string { return r.URL("/raft/cluster") }
+func (r NodeID) URLRaftCluster() string { return r.URL(HraftdRaftPath + "/cluster") }
 
 // URLRaftState is http://httpAddr/raft/state
-func (r NodeID) URLRaftState() string { return r.URL("/raft/state") }
+func (r NodeID) URLRaftState() string { return r.URL(HraftdRaftPath + "/state") }
 
 // URLRaftJoin is http://httpAddr/raft/join
-func (r NodeID) URLRaftJoin() string { return r.URL("/raft/join") }
+func (r NodeID) URLRaftJoin() string { return r.URL(HraftdRaftPath + "/join") }
 
 // URLRaftJoin is http://httpAddr/raft/join
-func (a BindAddr) URLRaftJoin() string { return a.URL("/raft/join") }
+func (a BindAddr) URLRaftJoin() string { return a.URL(HraftdRaftPath + "/join") }
 
 // HTTPAddr returns the HTTP bind address in the ID
 func (r NodeID) HTTPAddr() string { return strings.SplitN(string(r), ",", -1)[0] }
