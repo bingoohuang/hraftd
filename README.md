@@ -27,7 +27,7 @@ The reference implementation is a very simple in-memory key-value store.
 You can set/get a key by sending a request to the HTTP bind address (which defaults to `localhost:11000`):
 
 ```bash
-curl localhost:11000/hraftd/key -d '{"foo": "bar"}'
+curl -v -H "Content-Type: application/json" localhost:11000/hraftd/key -d '{"foo": "bar"}'
 curl localhost:11000/hraftd/key/foo
 ```
 
@@ -51,7 +51,7 @@ Run your first hraftd node like so:
 You can now set a key and read its value back:
 
 ```bash
-curl localhost:11000/hraftd/key -d '{"user1": "batman"}'
+curl -v -H "Content-Type: application/json" localhost:11000/hraftd/key -d '{"user1": "batman"}'
 curl localhost:11000/hraftd/key/user1
 ```
 
