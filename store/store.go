@@ -32,8 +32,7 @@ import (
 const (
 	retainSnapshotCount = 2
 	raftTimeout         = 10 * time.Second
-
-	appliedWaitDelay = 100 * time.Millisecond
+	appliedWaitDelay    = 100 * time.Millisecond
 )
 
 var (
@@ -323,10 +322,7 @@ func (s *Store) Set(key, value string) error {
 	}
 
 	b, _ := json.Marshal(&model.Command{
-		Op:    "set",
-		Key:   key,
-		Value: value,
-		Time:  util.FormatTime(time.Now()),
+		Op: "set", Key: key, Value: value, Time: util.FormatTime(time.Now()),
 	})
 	f := s.raft.Apply(b, raftTimeout)
 
@@ -340,10 +336,7 @@ func (s *Store) Delete(key string) error {
 	}
 
 	b, _ := json.Marshal(&model.Command{
-		Op:   "delete",
-		Key:  key,
-		Time: util.FormatTime(time.Now()),
-	})
+		Op: "delete", Key: key, Time: util.FormatTime(time.Now())})
 	f := s.raft.Apply(b, raftTimeout)
 
 	return f.Error()
