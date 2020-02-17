@@ -59,15 +59,8 @@ func leaderChanging(h *hraftd.Service) {
 }
 
 func tick(c hraftd.RaftCluster) {
-	availableServers := make([]hraftd.Peer, 0, len(c.Servers))
-
-	for _, server := range c.Servers {
-		if server.State == hraftd.StateLeader || server.State == "Follower" {
-			availableServers = append(availableServers, server)
-		}
-	}
-
-	serverLen := len(availableServers)
+	activePeers := c.ActivePeers()
+	serverLen := len(activePeers)
 
 	// demo 10 jobs
 	for i := 0; i < 10; i++ {
@@ -75,7 +68,7 @@ func tick(c hraftd.RaftCluster) {
 
 		if serverLen > 0 {
 			jobIndex := i % serverLen
-			peer := availableServers[jobIndex]
+			peer := activePeers[jobIndex]
 			r := &JobRsp{}
 			err := peer.DistributeJob("/myjob", req, r)
 
