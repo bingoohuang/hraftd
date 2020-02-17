@@ -1,4 +1,4 @@
-package httpd
+package hraftd
 
 import (
 	"bytes"
@@ -10,23 +10,19 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/bingoohuang/hraftd/util"
-
-	"github.com/bingoohuang/hraftd/model"
 )
 
 // Test_NewServer tests that a server can perform all basic operations.
 func Test_NewServer(t *testing.T) {
 	store := newTestStore()
 
-	arg := &model.Arg{
+	arg := &Arg{
 		RaftAddr: ":0",
 		HTTPAddr: ":0",
 	}
 	s := &testServer{&Service{Arg: arg, store: store}}
 
-	if err := s.Start(); err != nil {
+	if err := s.StartAll(); err != nil {
 		t.Fatalf("failed to start HTTP service: %s", err)
 	}
 
@@ -74,8 +70,8 @@ type testStore struct {
 func newTestStore() *testStore { return &testStore{m: make(map[string]string)} }
 
 func (t *testStore) RaftStats() map[string]interface{}             { return map[string]interface{}{} }
-func (t *testStore) Cluster() (model.RaftCluster, error)           { return model.RaftCluster{}, nil }
-func (t *testStore) LeadServer() (model.Peer, error)               { return model.Peer{}, nil }
+func (t *testStore) Cluster() (RaftCluster, error)                 { return RaftCluster{}, nil }
+func (t *testStore) LeadServer() (Peer, error)                     { return Peer{}, nil }
 func (t *testStore) WaitForLeader(_ time.Duration) (string, error) { return "", nil }
 func (t *testStore) LeaderCh() <-chan bool                         { return nil }
 func (t *testStore) Get(key string) (string, bool)                 { return t.m[key], true }
@@ -103,7 +99,7 @@ func doGet(t *testing.T, url, key string) string {
 
 func doPost(t *testing.T, url, key, value string) {
 	b, _ := json.Marshal(map[string]string{key: value})
-	resp, err := http.Post(url+"/key", util.ContentTypeJSON, bytes.NewReader(b))
+	resp, err := http.Post(url+"/key", ContentTypeJSON, bytes.NewReader(b))
 
 	if err != nil {
 		t.Fatalf("POST request failed: %s", err)

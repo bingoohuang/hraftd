@@ -1,12 +1,10 @@
-package store
+package hraftd
 
 import (
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/bingoohuang/hraftd/model"
 )
 
 // Test_StoreOpen tests that the store can be opened.
@@ -15,7 +13,7 @@ func Test_StoreOpen(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// nolint goconst
-	s := New(&model.Arg{
+	s := New(&Arg{
 		RaftAddr:    "127.0.0.1:0",
 		RaftNodeDir: tmpDir,
 		NodeID:      "node0",
@@ -32,7 +30,7 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
-	s := New(&model.Arg{
+	s := New(&Arg{
 		RaftAddr:    "127.0.0.1:0",
 		RaftNodeDir: tmpDir,
 		NodeID:      "node0",
@@ -77,7 +75,7 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
-	s := New(&model.Arg{
+	s := New(&Arg{
 		RaftAddr:    "127.0.0.1:0",
 		RaftNodeDir: tmpDir,
 		NodeID:      "node0",

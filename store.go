@@ -1,11 +1,4 @@
-// Package store provides a simple distributed key-value store. The keys and
-// associated values are changed via distributed consensus, meaning that the
-// values are changed only when a majority of nodes in the cluster agree on
-// the new value.
-//
-// Distributed consensus is provided via the Raft algorithm, specifically the
-// Hashicorp implementation.
-package store
+package hraftd
 
 import (
 	"bytes"
@@ -20,10 +13,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/bingoohuang/hraftd/model"
-
-	"github.com/bingoohuang/hraftd/util"
 
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -42,20 +31,20 @@ var (
 	ErrOpenTimeout = errors.New("timeout waiting for initial logs application")
 )
 
-// Store is a simple key-value store, where all changes are made via Raft consensus.
-type Store struct {
+// RaftStore is a simple key-value store, where all changes are made via Raft consensus.
+type RaftStore struct {
 	mu sync.Mutex
 	m  map[string]string // The key-value store for the system.
 
 	raft *raft.Raft // The consensus mechanism
 
 	logger *log.Logger
-	Arg    *model.Arg
+	Arg    *Arg
 }
 
 // New returns a new Store.
-func New(arg *model.Arg) *Store {
-	return &Store{
+func New(arg *Arg) *RaftStore {
+	return &RaftStore{
 		m:      make(map[string]string),
 		logger: log.New(os.Stderr, "[store] ", log.LstdFlags),
 
@@ -64,7 +53,7 @@ func New(arg *model.Arg) *Store {
 }
 
 // RaftStats returns raft stats.
-func (s *Store) RaftStats() map[string]interface{} {
+func (s *RaftStore) RaftStats() map[string]interface{} {
 	stats := s.raft.Stats()
 	m := make(map[string]interface{})
 
@@ -95,21 +84,21 @@ func (s *Store) RaftStats() map[string]interface{} {
 // acquiring or losing leadership. It sends true if we become
 // the leader, and false if we lose it. The channel is not buffered,
 // and does not block on writes.
-func (s *Store) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
+func (s *RaftStore) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 
 // NodeState returns the state of current node
-func (s *Store) NodeState() string { return s.raft.State().String() }
+func (s *RaftStore) NodeState() string { return s.raft.State().String() }
 
 // IsLeader tells the current node is raft leader or not.
-func (s *Store) IsLeader() bool { return s.raft.State() == raft.Leader }
+func (s *RaftStore) IsLeader() bool { return s.raft.State() == raft.Leader }
 
 // LeaderAddr returns the address of the current leader. Returns blank if no leader.
-func (s *Store) LeaderAddr() string { return string(s.raft.Leader()) }
+func (s *RaftStore) LeaderAddr() string { return string(s.raft.Leader()) }
 
 // LeadServer returns the raft lead server
-func (s *Store) LeadServer() (model.Peer, error) {
+func (s *RaftStore) LeadServer() (Peer, error) {
 	leader := s.raft.Leader()
-	peer := model.Peer{}
+	peer := Peer{}
 
 	if leader == "" {
 		return peer, errors.New("leader NA")
@@ -120,9 +109,9 @@ func (s *Store) LeadServer() (model.Peer, error) {
 			return true, nil
 		}
 
-		peer = model.Peer{
+		peer = Peer{
 			Address: string(srv.Address),
-			ID:      model.NodeID(srv.ID),
+			ID:      NodeID(srv.ID),
 			State:   raft.Leader.String(),
 		}
 
@@ -139,14 +128,14 @@ func (s *Store) LeadServer() (model.Peer, error) {
 }
 
 // Cluster returns the raft cluster state
-func (s *Store) Cluster() (model.RaftCluster, error) {
+func (s *RaftStore) Cluster() (RaftCluster, error) {
 	leaderAddress := s.raft.Leader()
-	cluster := model.RaftCluster{
-		Servers: make([]model.Peer, 0),
+	cluster := RaftCluster{
+		Servers: make([]Peer, 0),
 	}
 
 	err := s.walkRaftServers(func(srv raft.Server) (bool, error) {
-		peer := model.Peer{Address: string(srv.Address), ID: model.NodeID(srv.ID), Suffrage: srv.Suffrage.String()}
+		peer := Peer{Address: string(srv.Address), ID: NodeID(srv.ID), Suffrage: srv.Suffrage.String()}
 
 		if leaderAddress == srv.Address {
 			peer.State = raft.Leader.String()
@@ -176,10 +165,10 @@ func (s *Store) Cluster() (model.RaftCluster, error) {
 	return cluster, err
 }
 
-func (s *Store) getNodeState(nodeID model.NodeID) *model.Rsp {
-	r := &model.Rsp{}
+func (s *RaftStore) getNodeState(nodeID NodeID) *Rsp {
+	r := &Rsp{}
 	u := nodeID.URLRaftState()
-	rsp, err := util.GetJSON(u, r)
+	rsp, err := GetJSON(u, r)
 	s.logger.Printf("invoke get node state %s rsp %v\n", u, rsp)
 
 	if err != nil {
@@ -192,12 +181,12 @@ func (s *Store) getNodeState(nodeID model.NodeID) *model.Rsp {
 // Open opens the store. If enableSingle is set, and there are no existing peers,
 // then this node becomes the first node, and therefore leader, of the cluster.
 // localID should be the server identifier for this node.
-func (s *Store) Open() error {
+func (s *RaftStore) Open() error {
 	// Setup Raft configuration.
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(s.Arg.NodeID)
 
-	raftNodeDirExits := util.PathExists(s.Arg.RaftNodeDir)
+	raftNodeDirExits := PathExists(s.Arg.RaftNodeDir)
 
 	s.logger.Printf("RaftNodeDir %s exists %v\n", s.Arg.RaftNodeDir, raftNodeDirExits)
 
@@ -232,9 +221,9 @@ func (s *Store) Open() error {
 	return nil
 }
 
-func (s *Store) recoverJoin() error {
+func (s *RaftStore) recoverJoin() error {
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
-	if !util.PathExists(peerFile) {
+	if !PathExists(peerFile) {
 		return nil
 	}
 
@@ -256,12 +245,12 @@ func (s *Store) recoverJoin() error {
 	return nil
 }
 
-func (s *Store) tryJoinLeader(c raft.Configuration) bool {
-	leaderID := model.NodeID("")
+func (s *RaftStore) tryJoinLeader(c raft.Configuration) bool {
+	leaderID := NodeID("")
 
 	for _, server := range c.Servers {
-		nodeID := model.NodeID(server.ID)
-		if r := s.getNodeState(nodeID); r.OK && r.Msg == model.StateLeader {
+		nodeID := NodeID(server.ID)
+		if r := s.getNodeState(nodeID); r.OK && r.Msg == StateLeader {
 			leaderID = nodeID
 		}
 	}
@@ -270,14 +259,14 @@ func (s *Store) tryJoinLeader(c raft.Configuration) bool {
 		return false
 	}
 
-	if err := model.Join(leaderID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID); err == nil {
+	if err := Join(leaderID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID); err == nil {
 		return true
 	}
 
 	return false
 }
 
-func (s *Store) createTransport() (*raft.NetworkTransport, error) {
+func (s *RaftStore) createTransport() (*raft.NetworkTransport, error) {
 	// Setup Raft communication.
 	addr, err := net.ResolveTCPAddr("tcp", s.Arg.RaftAddr)
 	if err != nil {
@@ -289,7 +278,7 @@ func (s *Store) createTransport() (*raft.NetworkTransport, error) {
 }
 
 // createStores creates the log store and stable store.
-func (s *Store) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
+func (s *RaftStore) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
 	if s.Arg.InMem {
 		return raft.NewInmemStore(), raft.NewInmemStore(), raft.NewInmemSnapshotStore(), nil
 	}
@@ -309,19 +298,19 @@ func (s *Store) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotSt
 }
 
 // Get returns the value for the given key.
-func (s *Store) Get(key string) (v string, ok bool) {
+func (s *RaftStore) Get(key string) (v string, ok bool) {
 	s.lockApplyOp(func() interface{} { v, ok = s.m[key]; return nil })
 
 	return
 }
 
 // Set sets the value for the given key.
-func (s *Store) Set(key, value string) error {
+func (s *RaftStore) Set(key, value string) error {
 	if !s.IsLeader() {
 		return ErrNotLeader
 	}
 
-	c := &model.Command{Op: "set", Key: key, Value: value, Time: util.FormatTime(time.Now())}
+	c := &Command{Op: "set", Key: key, Value: value, Time: FormatTime(time.Now())}
 	b, _ := json.Marshal(c)
 	f := s.raft.Apply(b, raftTimeout)
 
@@ -329,12 +318,12 @@ func (s *Store) Set(key, value string) error {
 }
 
 // Delete deletes the given key.
-func (s *Store) Delete(key string) error {
+func (s *RaftStore) Delete(key string) error {
 	if !s.IsLeader() {
 		return ErrNotLeader
 	}
 
-	c := &model.Command{Op: "delete", Key: key, Time: util.FormatTime(time.Now())}
+	c := &Command{Op: "delete", Key: key, Time: FormatTime(time.Now())}
 	b, _ := json.Marshal(c)
 	f := s.raft.Apply(b, raftTimeout)
 
@@ -342,7 +331,7 @@ func (s *Store) Delete(key string) error {
 }
 
 // Remove removes the node, with the given nodeID, from the cluster.
-func (s *Store) Remove(nodeID string) error {
+func (s *RaftStore) Remove(nodeID string) error {
 	if s.raft.State() != raft.Leader {
 		return ErrNotLeader
 	}
@@ -358,7 +347,7 @@ func (s *Store) Remove(nodeID string) error {
 
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
-func (s *Store) Join(nodeID, addr string) error {
+func (s *RaftStore) Join(nodeID, addr string) error {
 	s.logger.Printf("received request to join node at %s", addr)
 
 	if s.raft.State() != raft.Leader {
@@ -420,7 +409,7 @@ type ConfigEntry struct {
 	Suffrage string `json:"suffrage"`
 }
 
-func (s *Store) writeClusterConfigEntries(cluster model.RaftCluster) error {
+func (s *RaftStore) writeClusterConfigEntries(cluster RaftCluster) error {
 	entries := make([]ConfigEntry, len(cluster.Servers))
 
 	for i, server := range cluster.Servers {
@@ -434,7 +423,7 @@ func (s *Store) writeClusterConfigEntries(cluster model.RaftCluster) error {
 	return s.writePeersJSON(entries)
 }
 
-func (s *Store) writeConfigEntries() error {
+func (s *RaftStore) writeConfigEntries() error {
 	servers := s.raft.GetConfiguration().Configuration().Servers
 	entries := make([]ConfigEntry, len(servers))
 
@@ -449,7 +438,7 @@ func (s *Store) writeConfigEntries() error {
 	return s.writePeersJSON(entries)
 }
 
-func (s *Store) writePeersJSON(entries []ConfigEntry) error {
+func (s *RaftStore) writePeersJSON(entries []ConfigEntry) error {
 	entriesJSON, err := json.Marshal(entries)
 	if err != nil {
 		return err
@@ -507,7 +496,7 @@ func ParseSuffrage(s string) raft.ServerSuffrage {
 }
 
 // WaitForLeader blocks until a leader is detected, or the timeout expires.
-func (s *Store) WaitForLeader(timeout time.Duration) (string, error) {
+func (s *RaftStore) WaitForLeader(timeout time.Duration) (string, error) {
 	tck := time.NewTicker(3 * time.Second) // nolint gomnd
 	tmr := time.NewTimer(timeout)
 
@@ -529,7 +518,7 @@ func (s *Store) WaitForLeader(timeout time.Duration) (string, error) {
 	}
 }
 
-func (s *Store) joinNodesFromLeader() {
+func (s *RaftStore) joinNodesFromLeader() {
 	cluster, err := s.Cluster()
 	if err != nil {
 		return
@@ -538,12 +527,12 @@ func (s *Store) joinNodesFromLeader() {
 	s.tryFindAndJoinLeader(cluster)
 }
 
-func (s *Store) tryFindAndJoinLeader(cluster model.RaftCluster) {
+func (s *RaftStore) tryFindAndJoinLeader(cluster RaftCluster) {
 	leader, _ := s.findLeader(cluster)
 
 	if leader.ID != "" {
 		s.logger.Printf("Leader found %+v\n", leader)
-		_ = model.Join(leader.ID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID)
+		_ = Join(leader.ID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID)
 
 		return
 	}
@@ -551,34 +540,34 @@ func (s *Store) tryFindAndJoinLeader(cluster model.RaftCluster) {
 	s.logger.Printf("Leader not found\n")
 }
 
-func (s *Store) findLeader(cluster model.RaftCluster) (model.Peer, bool) {
+func (s *RaftStore) findLeader(cluster RaftCluster) (Peer, bool) {
 	for _, peer := range cluster.Servers {
-		if peer.State == model.StateLeader {
+		if peer.State == StateLeader {
 			return peer, true
 		}
 
-		cl, err := model.Cluster(peer.ID)
+		cl, err := Cluster(peer.ID)
 		if err != nil {
 			continue
 		}
 
-		if cl.Leader.State == model.StateLeader {
+		if cl.Leader.State == StateLeader {
 			return cl.Leader, true
 		}
 
 		for _, n := range cl.Servers {
-			if n.State == model.StateLeader {
+			if n.State == StateLeader {
 				return n, true
 			}
 		}
 	}
 
-	return model.Peer{}, false
+	return Peer{}, false
 }
 
 // WaitForApplied waits for all Raft log entries to to be applied to the
 // underlying database.
-func (s *Store) WaitForApplied(timeout time.Duration) error {
+func (s *RaftStore) WaitForApplied(timeout time.Duration) error {
 	if timeout == 0 {
 		return nil
 	}
@@ -594,7 +583,7 @@ func (s *Store) WaitForApplied(timeout time.Duration) error {
 
 // WaitForAppliedIndex blocks until a given log index has been applied,
 // or the timeout expires.
-func (s *Store) WaitForAppliedIndex(idx uint64, timeout time.Duration) error {
+func (s *RaftStore) WaitForAppliedIndex(idx uint64, timeout time.Duration) error {
 	tck := time.NewTicker(appliedWaitDelay)
 	tmr := time.NewTimer(timeout)
 
@@ -614,8 +603,8 @@ func (s *Store) WaitForAppliedIndex(idx uint64, timeout time.Duration) error {
 }
 
 // Apply applies a Raft log entry to the key-value store.
-func (s *Store) Apply(l *raft.Log) interface{} {
-	var c model.Command
+func (s *RaftStore) Apply(l *raft.Log) interface{} {
+	var c Command
 	if err := json.Unmarshal(l.Data, &c); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal Command: %s", err.Error()))
 	}
@@ -631,7 +620,7 @@ func (s *Store) Apply(l *raft.Log) interface{} {
 
 	switch c.Op {
 	case "set":
-		t, err := util.ParseTime(c.Time)
+		t, err := ParseTime(c.Time)
 		if err != nil || t.Before(time.Now().Add(-100*time.Second)) { // nolint gomnd
 			s.logger.Printf("too old command  %+v, ignored\n", c)
 			return nil
@@ -653,8 +642,8 @@ func (s *Store) Apply(l *raft.Log) interface{} {
 	return nil
 }
 
-func (s *Store) processSetRaftCluster(c model.Command) {
-	v := model.RaftCluster{}
+func (s *RaftStore) processSetRaftCluster(c Command) {
+	v := RaftCluster{}
 	if err := json.Unmarshal([]byte(c.Value), &v); err != nil {
 		s.logger.Printf("json.Unmarshal error %+v\n", err)
 	} else if err := s.writeClusterConfigEntries(v); err != nil {
@@ -669,13 +658,13 @@ func (s *Store) processSetRaftCluster(c model.Command) {
 }
 
 // Snapshot returns a snapshot of the key-value store.
-func (s *Store) Snapshot() (raft.FSMSnapshot, error) {
-	fn := func() interface{} { return &fsmSnapshot{store: util.CloneMap(s.m)} }
+func (s *RaftStore) Snapshot() (raft.FSMSnapshot, error) {
+	fn := func() interface{} { return &fsmSnapshot{store: CloneMap(s.m)} }
 	return s.lockApplyOp(fn).(raft.FSMSnapshot), nil
 }
 
 // Restore stores the key-value store to a previous state.
-func (s *Store) Restore(rc io.ReadCloser) error {
+func (s *RaftStore) Restore(rc io.ReadCloser) error {
 	o := make(map[string]string)
 	if err := json.NewDecoder(rc).Decode(&o); err != nil {
 		return err
@@ -711,7 +700,7 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 
 func (f *fsmSnapshot) Release() {}
 
-func (s *Store) walkRaftServers(fn func(srv raft.Server) (bool, error)) error {
+func (s *RaftStore) walkRaftServers(fn func(srv raft.Server) (bool, error)) error {
 	f := s.raft.GetConfiguration()
 	if err := f.Error(); err != nil {
 		return fmt.Errorf("failed to get raft configuration: %w", err)
@@ -728,7 +717,7 @@ func (s *Store) walkRaftServers(fn func(srv raft.Server) (bool, error)) error {
 	return nil
 }
 
-func (s *Store) lockApplyOp(fn func() interface{}) interface{} {
+func (s *RaftStore) lockApplyOp(fn func() interface{}) interface{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

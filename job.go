@@ -1,4 +1,4 @@
-package httpd
+package hraftd
 
 import (
 	"encoding/json"
@@ -8,12 +8,10 @@ import (
 	"strings"
 
 	"github.com/bingoohuang/gonet"
-	"github.com/bingoohuang/hraftd/model"
-	"github.com/bingoohuang/hraftd/util"
 )
 
 func (s *Service) handleJobRequest(w http.ResponseWriter, r *http.Request) error {
-	path := strings.TrimPrefix(r.URL.String(), model.HraftdDoJobPath)
+	path := strings.TrimPrefix(r.URL.String(), DoJobPath)
 	dealer, ok := s.Dealers[path]
 
 	if !ok {
@@ -27,7 +25,7 @@ func (s *Service) handleJobRequest(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 
-	util.WriteAsJSON(model.Rsp{OK: true, Msg: "ok", Data: rsp}, w)
+	WriteAsJSON(Rsp{OK: true, Msg: "ok", Data: rsp}, w)
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package httpd
+package hraftd
 
 import (
 	"encoding/json"
@@ -6,9 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-
-	"github.com/bingoohuang/hraftd/model"
-	"github.com/bingoohuang/hraftd/util"
 )
 
 func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +13,7 @@ func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		if key, ok := getKey(r, w); ok {
 			if v, ok := s.store.Get(key); ok {
-				util.WriteAsJSON(map[string]string{key: v}, w)
+				WriteAsJSON(map[string]string{key: v}, w)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 			}
@@ -37,7 +34,7 @@ func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func getKey(r *http.Request, w http.ResponseWriter) (string, bool) {
-	key := strings.TrimPrefix(r.URL.Path, model.HraftdKeyPath)
+	key := strings.TrimPrefix(r.URL.Path, KeyPath)
 	key = strings.TrimPrefix(key, "/")
 
 	if key != "" {
@@ -87,7 +84,7 @@ func (s *Service) handleRemove(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	util.WriteAsJSON(model.Rsp{OK: true, Msg: "OK"}, w)
+	WriteAsJSON(Rsp{OK: true, Msg: "OK"}, w)
 
 	return nil
 }

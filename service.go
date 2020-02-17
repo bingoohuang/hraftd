@@ -1,6 +1,4 @@
-// Package httpd provides the HTTP server for accessing the distributed key-value Store.
-// It also provides the endpoint for other nodes to Join an existing cluster.
-package httpd
+package hraftd
 
 import (
 	"errors"
@@ -9,27 +7,21 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/bingoohuang/hraftd/store"
-
-	"github.com/bingoohuang/hraftd/model"
-
-	"github.com/bingoohuang/hraftd/util"
 )
 
 // Service provides HTTP service.
 type Service struct {
-	store model.Store
+	store Store
 	Ln    net.Listener
-	Arg   *model.Arg
+	Arg   *Arg
 
 	LeaderCh chan bool
 	Dealers  map[string]Dealer
 }
 
 // Create returns an uninitialized service.
-func Create(arg *model.Arg) *Service {
-	s := store.New(arg)
+func Create(arg *Arg) *Service {
+	s := New(arg)
 
 	if err := s.Open(); err != nil {
 		log.Fatalf("failed to open Store: %s", err.Error())
@@ -38,8 +30,8 @@ func Create(arg *model.Arg) *Service {
 	return &Service{Arg: arg, store: s, Dealers: make(map[string]Dealer), LeaderCh: make(chan bool, 1)}
 }
 
-// StartAsync starts the service.
-func (s *Service) Start() error {
+// StartAll starts the http and raft service.
+func (s *Service) StartAll() error {
 	if err := s.GoStartHTTP(); err != nil {
 		return err
 	}
@@ -47,6 +39,7 @@ func (s *Service) Start() error {
 	return s.StartRaft()
 }
 
+// StartRaft starts the raft service.
 func (s *Service) StartRaft() error {
 	go s.listenLeaderCh()
 
@@ -92,11 +85,11 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("received request [%s] %s for %s\n", r.Method, path, r.RemoteAddr)
 
 	switch {
-	case strings.HasPrefix(path, model.HraftdKeyPath):
+	case strings.HasPrefix(path, KeyPath):
 		s.handleKeyRequest(w, r)
-	case strings.HasPrefix(path, model.HraftdRaftPath):
+	case strings.HasPrefix(path, RaftPath):
 		s.handleRaftRequest(w, r)
-	case strings.HasPrefix(path, model.HraftdDoJobPath):
+	case strings.HasPrefix(path, DoJobPath):
 		CheckMethodE("POST", s.handleJobRequest, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
@@ -127,7 +120,7 @@ func CheckMethodE(m string, f ServeHTTPFnE, w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := f(w, r); err != nil {
-		util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
+		WriteAsJSON(Rsp{Msg: err.Error()}, w)
 	}
 }
 
@@ -143,7 +136,7 @@ func (s *Service) tryForwardToLeader(f ServeHTTPFn, w http.ResponseWriter, r *ht
 	if s.store.IsLeader() {
 		f(w, r)
 	} else if err := s.forwardToLeader(w, r); err != nil {
-		util.WriteAsJSON(model.Rsp{Msg: err.Error()}, w)
+		WriteAsJSON(Rsp{Msg: err.Error()}, w)
 	}
 }
 
@@ -160,11 +153,11 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error 
 
 	log.Printf("forward %s to leader %s\n", r.URL.String(), addr)
 
-	if xor := r.Header.Get(util.XOriginRemoteAddr); xor != "" {
+	if xor := r.Header.Get(XOriginRemoteAddr); xor != "" {
 		return errors.New("forward two times not allowed")
 	}
 
-	util.ReverseProxy(addr, r.URL.Path, 10*time.Second).ServeHTTP(w, r) // nolint gomnd
+	ReverseProxy(addr, r.URL.Path, 10*time.Second).ServeHTTP(w, r) // nolint gomnd
 
 	return nil
 }

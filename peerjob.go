@@ -1,27 +1,25 @@
-package model
+package hraftd
 
 import (
 	"encoding/json"
 	"errors"
 	"log"
-
-	"github.com/bingoohuang/hraftd/util"
 )
 
-// Rsp defines the JobRsp structure
+// JobRsp defines the Job Response structure.
 type JobRsp struct {
 	OK   bool            `json:"ok"`
 	Msg  string          `json:"msg,omitempty"`
 	Data json.RawMessage `json:"data,omitempty"`
 }
 
-// DistributeJob distributes job to the peer node in the raft clusters
+// DistributeJob distributes job to the peer node in the raft clusters.
 func (p Peer) DistributeJob(path string, req interface{}, rsp interface{}) error {
-	jobURL := p.ID.URL(HraftdDoJobPath + path)
+	jobURL := p.ID.URL(DoJobPath + path)
 	log.Printf("dispatch job %+v to %s\n", req, jobURL)
 
 	jobRsp := JobRsp{}
-	stateCode, resp, err := util.PostJSON(jobURL, req, &jobRsp)
+	stateCode, resp, err := PostJSON(jobURL, req, &jobRsp)
 	log.Printf("job response %d %s\n", stateCode, resp)
 
 	if err != nil {

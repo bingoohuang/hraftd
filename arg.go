@@ -1,4 +1,4 @@
-package model
+package hraftd
 
 import (
 	"errors"
@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/bingoohuang/gonet"
-	"github.com/bingoohuang/hraftd/util"
 )
 
 // Arg Command line parameters
@@ -111,7 +110,7 @@ func (a *Arg) fixAddr() {
 			log.Panicf("port %d is too large (<= 34565)\n", por)
 		}
 
-		host = util.If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
+		host = If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
 
 		a.HTTPAddr = fmt.Sprintf(":%d", por)              // nolint gomnd
 		a.RaftAddr = fmt.Sprintf("%s:%d", host, por+1000) // nolint gomnd
@@ -130,13 +129,13 @@ func (a *Arg) fixAddr() {
 			log.Panicf("port %d is too large (>= 2024)\n", por)
 		}
 
-		host = util.If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
+		host = If(host == "" || host == "127.0.0.1" || host == "localhost", localIP, host)
 		a.HTTPAddr = fmt.Sprintf(":%d", por-1000)    // nolint gomnd
 		a.RaftAddr = fmt.Sprintf("%s:%d", host, por) // nolint gomnd
 	}
 }
 
-// ID is the raft node ID
+// NodeID is the raft node ID
 type NodeID string
 
 // BindAddr is the address for bind
@@ -154,16 +153,16 @@ func (a BindAddr) URL(path string) string {
 func (r NodeID) URL(relativePath string) string { return BindAddr(r.HTTPAddr()).URL(relativePath) }
 
 // URLRaftCluster is http://httpAddr/raft/cluster
-func (r NodeID) URLRaftCluster() string { return r.URL(HraftdRaftPath + "/cluster") }
+func (r NodeID) URLRaftCluster() string { return r.URL(RaftPath + "/cluster") }
 
 // URLRaftState is http://httpAddr/raft/state
-func (r NodeID) URLRaftState() string { return r.URL(HraftdRaftPath + "/state") }
+func (r NodeID) URLRaftState() string { return r.URL(RaftPath + "/state") }
 
 // URLRaftJoin is http://httpAddr/raft/join
-func (r NodeID) URLRaftJoin() string { return r.URL(HraftdRaftPath + "/join") }
+func (r NodeID) URLRaftJoin() string { return r.URL(RaftPath + "/join") }
 
 // URLRaftJoin is http://httpAddr/raft/join
-func (a BindAddr) URLRaftJoin() string { return a.URL(HraftdRaftPath + "/join") }
+func (a BindAddr) URLRaftJoin() string { return a.URL(RaftPath + "/join") }
 
 // HTTPAddr returns the HTTP bind address in the ID
 func (r NodeID) HTTPAddr() string { return strings.SplitN(string(r), ",", -1)[0] }
@@ -210,7 +209,7 @@ func (a *Arg) parseBootstrap() {
 			log.Fatalf("fail to parse JoinAddrs %s error %v\n", a.JoinAddrs, err)
 		}
 
-		h = util.EmptyThen(h, localIP)
+		h = EmptyThen(h, localIP)
 		adr := fmt.Sprintf("%s:%s", h, p)
 
 		a.JoinAddrSlice = append(a.JoinAddrSlice, adr)
@@ -271,7 +270,7 @@ func Join(joinAddr, raftAddr string, nodeID NodeID) error {
 	log.Printf("joinURL %s\n", joinURL)
 
 	r := &Rsp{}
-	stateCode, resp, err := util.PostJSON(joinURL, JoinRequest{Addr: raftAddr, NodeID: nodeID}, r)
+	stateCode, resp, err := PostJSON(joinURL, JoinRequest{Addr: raftAddr, NodeID: nodeID}, r)
 	log.Printf("join response %d %s\n", stateCode, resp)
 
 	if err != nil {
@@ -287,11 +286,12 @@ func Join(joinAddr, raftAddr string, nodeID NodeID) error {
 	return errors.New(r.Msg)
 }
 
+// Cluster retrieves the RaftCluster
 func Cluster(nodeID NodeID) (v RaftCluster, err error) {
 	clusterURL := nodeID.URLRaftCluster()
 	log.Printf("GET Cluster %s\n", clusterURL)
 
-	rsp, err := util.GetJSON(clusterURL, &v)
+	rsp, err := GetJSON(clusterURL, &v)
 
 	log.Printf("GET Cluster %s, result %+v\n", clusterURL, rsp)
 
