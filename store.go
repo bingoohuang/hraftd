@@ -186,9 +186,10 @@ func (s *RaftStore) Open() error {
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(s.Arg.NodeID)
 
-	raftNodeDirExits := PathExists(s.Arg.RaftNodeDir)
+	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
+	peerFileExits := PathExists(peerFile)
 
-	s.logger.Printf("RaftNodeDir %s exists %v\n", s.Arg.RaftNodeDir, raftNodeDirExits)
+	s.logger.Printf("RaftNodeDir %s exists %v\n", s.Arg.RaftNodeDir, peerFileExits)
 
 	logStore, stableStore, snapshots, err := s.createStores()
 	if err != nil {
@@ -207,13 +208,13 @@ func (s *RaftStore) Open() error {
 
 	s.raft = r
 
-	if s.Arg.Bootstrap && !raftNodeDirExits {
+	if s.Arg.Bootstrap && !peerFileExits {
 		c := raft.Configuration{Servers: []raft.Server{{ID: config.LocalID, Address: t.LocalAddr()}}}
 		s.raft.BootstrapCluster(c)
 	}
 
-	if raftNodeDirExits {
-		if err := s.recoverJoin(); err != nil {
+	if peerFileExits {
+		if err := s.recoverJoin(peerFile); err != nil {
 			return err
 		}
 	}
@@ -221,12 +222,7 @@ func (s *RaftStore) Open() error {
 	return nil
 }
 
-func (s *RaftStore) recoverJoin() error {
-	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
-	if !PathExists(peerFile) {
-		return nil
-	}
-
+func (s *RaftStore) recoverJoin(peerFile string) error {
 	c, err := ReadPeersJSON(peerFile)
 	if err != nil {
 		return err

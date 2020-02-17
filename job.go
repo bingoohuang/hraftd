@@ -10,7 +10,7 @@ import (
 	"github.com/bingoohuang/gonet"
 )
 
-func (s *Service) handleJobRequest(w http.ResponseWriter, r *http.Request) error {
+func (s *DealerMap) handleJobRequest(w http.ResponseWriter, r *http.Request) error {
 	path := strings.TrimPrefix(r.URL.String(), DoJobPath)
 	dealer, ok := s.Dealers[path]
 
@@ -30,20 +30,28 @@ func (s *Service) handleJobRequest(w http.ResponseWriter, r *http.Request) error
 	return nil
 }
 
-// DealerFn defines the job dealer function prototype.
-type DealerFn func(req interface{}) (interface{}, error)
+// DealerMap keep mapping dealer path to registered dealer
+type DealerMap struct {
+	Dealers map[string]Dealer
+}
+
+// MakeDealerMap makes a DealerMap
+func MakeDealerMap() DealerMap {
+	return DealerMap{Dealers: make(map[string]Dealer)}
+}
 
 // Dealer defines the job dealer structure
 type Dealer struct {
-	Fn      DealerFn
+	Fn      reflect.Value
 	ReqType reflect.Type
 }
 
 // Invoke invokes the registered dealer function
-func (d Dealer) Invoke(requestBody []byte) (interface{}, error) {
+func (d Dealer) Invoke(requestBody []byte) (x interface{}, err error) {
 	reqType := d.ReqType
+	isReqTypePtr := d.ReqType.Kind() == reflect.Ptr
 
-	if d.ReqType.Kind() == reflect.Ptr {
+	if isReqTypePtr {
 		reqType = d.ReqType.Elem()
 	}
 
@@ -53,20 +61,54 @@ func (d Dealer) Invoke(requestBody []byte) (interface{}, error) {
 		return nil, err
 	}
 
-	if d.ReqType.Kind() == reflect.Ptr {
-		return d.Fn(req.Interface())
+	if !isReqTypePtr {
+		req = req.Elem()
 	}
 
-	return d.Fn(req.Elem().Interface())
+	ret := d.Fn.Call([]reflect.Value{req})
+
+	if ret[1].IsNil() {
+		err = nil
+	} else {
+		err = ret[1].Interface().(error)
+	}
+
+	return ret[0].Interface(), err
 }
 
 // RegisterJobDealer registers path dealers
-func (s *Service) RegisterJobDealer(jobPath string, dealer DealerFn, req interface{}) error {
+func (s *DealerMap) RegisterJobDealer(jobPath string, dealer interface{}) error {
 	if _, ok := s.Dealers[jobPath]; ok {
 		return errors.New("dealer [] " + jobPath + " already registered")
 	}
 
-	s.Dealers[jobPath] = Dealer{Fn: dealer, ReqType: reflect.TypeOf(req)}
+	fn, err := checkDealerFn(dealer)
+	if err != nil {
+		return err
+	}
+
+	s.Dealers[jobPath] = Dealer{Fn: fn, ReqType: fn.Type().In(0)}
 
 	return nil
+}
+
+func checkDealerFn(f interface{}) (reflect.Value, error) {
+	fn := reflect.ValueOf(f)
+	fnType := reflect.TypeOf(f)
+
+	if fnType.Kind() != reflect.Func {
+		return fn, errors.New("function required")
+	}
+
+	if !(fnType.NumIn() == 1 && fnType.NumOut() == 2) {
+		return fn, errors.New("function must have 1 parameter and return like (x,error)")
+	}
+
+	errorInterface := reflect.TypeOf((*error)(nil)).Elem()
+
+	if fnType.Out(1) != errorInterface { // nolint gomnd
+		return fn, errors.New("function must return like（x, error)")
+	}
+
+	return fn, nil
 }

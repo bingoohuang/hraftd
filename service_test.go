@@ -83,7 +83,8 @@ func (t *testStore) IsLeader() bool                                { return true
 func (t *testStore) NodeState() string                             { return "" }
 
 func doGet(t *testing.T, url, key string) string {
-	resp, err := http.Get(fmt.Sprintf("%s/key/%s", url, key))
+	resp, err := http.Get(url + KeyPath + "/" + key)
+
 	if err != nil {
 		t.Fatalf("failed to GET key: %s", err)
 	}
@@ -99,7 +100,7 @@ func doGet(t *testing.T, url, key string) string {
 
 func doPost(t *testing.T, url, key, value string) {
 	b, _ := json.Marshal(map[string]string{key: value})
-	resp, err := http.Post(url+"/key", ContentTypeJSON, bytes.NewReader(b))
+	resp, err := http.Post(url+KeyPath, ContentTypeJSON, bytes.NewReader(b))
 
 	if err != nil {
 		t.Fatalf("POST request failed: %s", err)
@@ -109,7 +110,7 @@ func doPost(t *testing.T, url, key, value string) {
 }
 
 func doDelete(t *testing.T, u, key string) {
-	ru, err := url.Parse(fmt.Sprintf("%s/key/%s", u, key))
+	ru, err := url.Parse(u + KeyPath + "/" + key)
 	if err != nil {
 		t.Fatalf("failed to parse URL for delete: %s", err)
 	}

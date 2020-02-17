@@ -24,7 +24,7 @@ func main() {
 	}
 
 	h := hraftd.Create(arg)
-	if err := h.RegisterJobDealer("/myjob", myJob, (*JobReq)(nil)); err != nil {
+	if err := h.RegisterJobDealer("/myjob", myJob); err != nil {
 		log.Fatalf("failed to register /myjob, error %v\n", err)
 	}
 
@@ -89,7 +89,7 @@ func tick(c hraftd.RaftCluster) {
 			if err != nil {
 				fmt.Printf("process locally error %v\n", err)
 			} else {
-				fmt.Printf("process locally successfully, rsp :%+v\n", rsp.(JobRsp))
+				fmt.Printf("process locally successfully, rsp :%+v\n", rsp)
 			}
 		}
 	}
@@ -104,11 +104,6 @@ type JobRsp struct {
 	Msg string `json:"msg"`
 }
 
-func myJob(req interface{}) (interface{}, error) {
-	r := req.(*JobReq)
-
-	return JobRsp{
-		OK:  "OK",
-		Msg: r.ID + " is processed",
-	}, nil
+func myJob(req *JobReq) (JobRsp, error) {
+	return JobRsp{OK: "OK", Msg: req.ID + " is processed"}, nil
 }

@@ -16,7 +16,7 @@ type Service struct {
 	Arg   *Arg
 
 	LeaderCh chan bool
-	Dealers  map[string]Dealer
+	DealerMap
 }
 
 // Create returns an uninitialized service.
@@ -27,7 +27,7 @@ func Create(arg *Arg) *Service {
 		log.Fatalf("failed to open Store: %s", err.Error())
 	}
 
-	return &Service{Arg: arg, store: s, Dealers: make(map[string]Dealer), LeaderCh: make(chan bool, 1)}
+	return &Service{Arg: arg, store: s, DealerMap: MakeDealerMap(), LeaderCh: make(chan bool, 1)}
 }
 
 // StartAll starts the http and raft service.
