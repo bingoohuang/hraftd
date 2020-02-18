@@ -418,6 +418,10 @@ func (s *RaftStore) writeClusterConfigEntries(cluster RaftCluster) error {
 }
 
 func (s *RaftStore) writeConfigEntries() error {
+	if s.Arg.InMem {
+		return nil
+	}
+
 	servers := s.raft.GetConfiguration().Configuration().Servers
 	entries := make([]ConfigEntry, len(servers))
 
@@ -433,6 +437,7 @@ func (s *RaftStore) writeConfigEntries() error {
 }
 
 func (s *RaftStore) writePeersJSON(entries []ConfigEntry) error {
+	_ = os.MkdirAll(s.Arg.RaftNodeDir, 0644)
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 
 	return ioutil.WriteFile(peerFile, JsonifyBytes(entries), 0644)
@@ -627,6 +632,10 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 }
 
 func (s *RaftStore) processSetRaftCluster(c Command) {
+	if s.Arg.InMem {
+		return
+	}
+
 	v := RaftCluster{}
 	if err := json.Unmarshal([]byte(c.Value), &v); err != nil {
 		s.logger.Printf("json.Unmarshal error %+v\n", err)
