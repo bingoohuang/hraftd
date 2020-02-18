@@ -94,46 +94,6 @@ func Hjson(v interface{}) string {
 	return strings.ReplaceAll(string(hj), "\n", "")
 }
 
-// Ticker defines a ticker.
-type Ticker struct {
-	stop     chan bool
-	tickerFn func()
-	d        time.Duration
-}
-
-// NewTicker creates a new ticker.
-func NewTicker(d time.Duration, tickerFn func()) *Ticker {
-	return &Ticker{stop: make(chan bool, 1), tickerFn: tickerFn, d: d}
-}
-
-// StartAsync starts the ticker.
-func (j *Ticker) StartAsync() {
-	go j.start()
-}
-
-// start starts the ticker.
-func (j *Ticker) start() {
-	t := time.NewTicker(j.d)
-	defer t.Stop()
-
-	for {
-		select {
-		case <-t.C:
-			j.tickerFn()
-		case <-j.stop:
-			return
-		}
-	}
-}
-
-// StopAsync stops the ticker.
-func (j *Ticker) StopAsync() {
-	select {
-	case j.stop <- true:
-	default:
-	}
-}
-
 const dfmt = "2006-01-02 15:04:05.000"
 
 // FormatTime format time.
