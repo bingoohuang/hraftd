@@ -75,8 +75,7 @@ func (s *Service) listenLeaderCh() {
 			continue
 		}
 
-		v, _ := json.Marshal(cluster)
-		cv := string(v)
+		cv := Jsonify(cluster)
 		log.Printf("try s.store.Set /raft/cluster to %v\n", cv)
 
 		if err := s.store.Set("/raft/cluster", cv); err != nil {

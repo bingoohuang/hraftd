@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/bingoohuang/gonet"
+	"github.com/hashicorp/raft"
 )
 
 // Arg Command line parameters
@@ -31,6 +32,13 @@ type Arg struct {
 
 	ApplyInterceptor ApplyInterceptor `json:"-"`
 	JoinAddrSlice    []string
+
+	LogDealer
+}
+
+// MakeArg makes a Arg
+func MakeArg() *Arg {
+	return &Arg{LogDealer: MakeLogDealer()}
 }
 
 // FlagProvider defines the interface for flag definitions required for hraftd.
@@ -41,17 +49,17 @@ type FlagProvider interface {
 
 // DefineFlags define raft args
 func DefineFlags(p FlagProvider) *Arg {
-	var app Arg
+	a := MakeArg()
 
-	p.BoolVar(&app.InMem, "rmem", true, "Use in-memory storage for Raft")
-	p.StringVar(&app.HTTPAddr, "haddr", "", "HTTP server bind address")
-	p.StringVar(&app.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
-	p.StringVar(&app.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
-	p.StringVar(&app.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
-	p.StringVar(&app.RaftNodeDir, "rdir", "", "Raft data directory, default to ~/.hraftd/{id}")
-	p.StringVar(&app.JoinAddrs, "rjoin", "", "Set raft cluster join addresses separated by comma, if any")
+	p.BoolVar(&a.InMem, "rmem", true, "Use in-memory storage for Raft")
+	p.StringVar(&a.HTTPAddr, "haddr", "", "HTTP server bind address")
+	p.StringVar(&a.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
+	p.StringVar(&a.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
+	p.StringVar(&a.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
+	p.StringVar(&a.RaftNodeDir, "rdir", "", "Raft data directory, default to ~/.hraftd/{id}")
+	p.StringVar(&a.JoinAddrs, "rjoin", "", "Set raft cluster join addresses separated by comma, if any")
 
-	return &app
+	return a
 }
 
 // ViperProvider defines the args getter provider.
@@ -63,18 +71,19 @@ type ViperProvider interface {
 
 // CreateArg creates Arg by ViperProvider implementation.
 func CreateArg(p ViperProvider) *Arg {
-	var app Arg
+	a := MakeArg()
 
 	p.SetDefault("rmem", true)
-	app.InMem = p.GetBool("rmem")
-	app.HTTPAddr = p.GetString("haddr")
-	app.HTTPAdv = p.GetString("hadv")
-	app.RaftAddr = p.GetString("raddr")
-	app.RaftAdv = p.GetString("radv")
-	app.RaftNodeDir = p.GetString("rdir")
-	app.JoinAddrs = p.GetString("rjoin")
 
-	return &app
+	a.InMem = p.GetBool("rmem")
+	a.HTTPAddr = p.GetString("haddr")
+	a.HTTPAdv = p.GetString("hadv")
+	a.RaftAddr = p.GetString("raddr")
+	a.RaftAdv = p.GetString("radv")
+	a.RaftNodeDir = p.GetString("rdir")
+	a.JoinAddrs = p.GetString("rjoin")
+
+	return a
 }
 
 // WaitInterrupt waits on interrupt signal
@@ -262,6 +271,27 @@ func (a *Arg) Join() error {
 	}
 
 	return fmt.Errorf("failed to join %s", a.JoinAddrs)
+}
+
+// Intercept intercepts the raft log applying.
+func (a *Arg) Intercept(l *raft.Log, c Command) (interface{}, bool) {
+	if a.ApplyInterceptor != nil {
+		intercepted := a.ApplyInterceptor(l, c)
+		if intercepted {
+			return nil, true
+		}
+	}
+
+	ret, err := a.Invoke(c.Key, []byte(c.Value))
+	if errors.Is(err, ErrDealerNoExists) {
+		return nil, false
+	}
+
+	if err != nil {
+		return err, true
+	}
+
+	return ret, true
 }
 
 // Join joins current node (raftAddr and nodeID) to joinAddr.

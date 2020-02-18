@@ -12,14 +12,8 @@ import (
 
 func (s *DealerMap) handleJobRequest(w http.ResponseWriter, r *http.Request) error {
 	path := strings.TrimPrefix(r.URL.String(), DoJobPath)
-	dealer, ok := s.Dealers[path]
-
-	if !ok {
-		return errors.New("dealer [] " + path + " not found")
-	}
-
 	body := gonet.ReadBytes(r.Body)
-	rsp, err := dealer.Invoke(body)
+	rsp, err := s.Invoke(path, body)
 
 	if err != nil {
 		return err
@@ -46,8 +40,17 @@ type Dealer struct {
 	ReqType reflect.Type
 }
 
+// ErrDealerNoExists is the error for the dealer not exists.
+var ErrDealerNoExists = errors.New("dealer does not exist") // nolint
+
 // Invoke invokes the registered dealer function
-func (d Dealer) Invoke(requestBody []byte) (x interface{}, err error) {
+func (s *DealerMap) Invoke(dealerName string, requestBody []byte) (x interface{}, err error) {
+	d, ok := s.Dealers[dealerName]
+
+	if !ok {
+		return nil, ErrDealerNoExists
+	}
+
 	reqType := d.ReqType
 	isReqTypePtr := d.ReqType.Kind() == reflect.Ptr
 
@@ -77,9 +80,9 @@ func (d Dealer) Invoke(requestBody []byte) (x interface{}, err error) {
 }
 
 // RegisterJobDealer registers path dealers
-func (s *DealerMap) RegisterJobDealer(jobPath string, dealer interface{}) error {
-	if _, ok := s.Dealers[jobPath]; ok {
-		return errors.New("dealer [] " + jobPath + " already registered")
+func (s *DealerMap) RegisterJobDealer(dealerName string, dealer interface{}) error {
+	if _, ok := s.Dealers[dealerName]; ok {
+		return errors.New("dealer [] " + dealerName + " already registered")
 	}
 
 	fn, err := checkDealerFn(dealer)
@@ -87,7 +90,7 @@ func (s *DealerMap) RegisterJobDealer(jobPath string, dealer interface{}) error 
 		return err
 	}
 
-	s.Dealers[jobPath] = Dealer{Fn: fn, ReqType: fn.Type().In(0)}
+	s.Dealers[dealerName] = Dealer{Fn: fn, ReqType: fn.Type().In(0)}
 
 	return nil
 }

@@ -33,9 +33,5 @@ func (p Peer) DistributeJob(path string, req interface{}, rsp interface{}) error
 		return errors.New(jobRsp.Msg)
 	}
 
-	if err := json.Unmarshal(jobRsp.Data, rsp); err != nil {
-		return err
-	}
-
-	return nil
+	return json.Unmarshal(jobRsp.Data, rsp)
 }

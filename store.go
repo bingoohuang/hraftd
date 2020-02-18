@@ -307,8 +307,7 @@ func (s *RaftStore) Set(key, value string) error {
 	}
 
 	c := &Command{Op: "set", Key: key, Value: value, Time: FormatTime(time.Now())}
-	b, _ := json.Marshal(c)
-	f := s.raft.Apply(b, raftTimeout)
+	f := s.raft.Apply(JsonifyBytes(c), raftTimeout)
 
 	return f.Error()
 }
@@ -320,8 +319,7 @@ func (s *RaftStore) Delete(key string) error {
 	}
 
 	c := &Command{Op: "delete", Key: key, Time: FormatTime(time.Now())}
-	b, _ := json.Marshal(c)
-	f := s.raft.Apply(b, raftTimeout)
+	f := s.raft.Apply(JsonifyBytes(c), raftTimeout)
 
 	return f.Error()
 }
@@ -435,14 +433,9 @@ func (s *RaftStore) writeConfigEntries() error {
 }
 
 func (s *RaftStore) writePeersJSON(entries []ConfigEntry) error {
-	entriesJSON, err := json.Marshal(entries)
-	if err != nil {
-		return err
-	}
-
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 
-	return ioutil.WriteFile(peerFile, entriesJSON, 0644)
+	return ioutil.WriteFile(peerFile, JsonifyBytes(entries), 0644)
 }
 
 // ReadPeersJSON consumes a legacy peers.json file in the format of the old JSON
@@ -605,13 +598,8 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 		panic(fmt.Sprintf("failed to unmarshal Command: %s", err.Error()))
 	}
 
-	intercepted := false
-	if s.Arg.ApplyInterceptor != nil {
-		intercepted = s.Arg.ApplyInterceptor(l, c)
-	}
-
-	if intercepted {
-		return nil
+	if rsp, intercepted := s.Arg.Intercept(l, c); intercepted {
+		return rsp
 	}
 
 	switch c.Op {
@@ -678,9 +666,7 @@ type fsmSnapshot struct {
 
 func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 	err := func() error {
-		b, _ := json.Marshal(f.store)
-
-		if _, err := sink.Write(b); err != nil {
+		if _, err := sink.Write(JsonifyBytes(f.store)); err != nil {
 			return err
 		}
 

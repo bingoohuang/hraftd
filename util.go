@@ -60,8 +60,7 @@ func WriteAsText(s string, w http.ResponseWriter) {
 func WriteAsJSON(m interface{}, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	b, _ := json.Marshal(m)
-	_, _ = w.Write(b)
+	_, _ = w.Write(JsonifyBytes(m))
 }
 
 // ReadString ...
@@ -146,4 +145,15 @@ func FormatTime(t time.Time) string {
 // ParseTime parses time.
 func ParseTime(s string) (time.Time, error) {
 	return time.Parse(dfmt, s)
+}
+
+// Jsonify jsonifies v to JSON string
+func Jsonify(v interface{}) string {
+	return string(JsonifyBytes(v))
+}
+
+// JsonifyBytes jsonifies v to JSON []byte
+func JsonifyBytes(v interface{}) []byte {
+	b, _ := json.Marshal(v)
+	return b
 }

@@ -18,9 +18,7 @@ func GetJSON(addr string, v interface{}) (string, error) {
 
 // PostJSON posts body as JSON and parse response as JSON
 func PostJSON(addr string, body, v interface{}) (int, string, error) {
-	b, _ := json.Marshal(body)
-
-	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(b)) // nolint gosec
+	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(JsonifyBytes(body))) // nolint gosec
 	if err != nil {
 		return 0, "", err
 	}

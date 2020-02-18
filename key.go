@@ -47,6 +47,11 @@ func getKey(r *http.Request, w http.ResponseWriter) (string, bool) {
 	return "", false
 }
 
+// Set sets the key-value to the raft log.
+func (s *Service) Set(k, v string) error {
+	return s.store.Set(k, v)
+}
+
 func (s *Service) doKeyPost(w http.ResponseWriter, r *http.Request) {
 	// Read the value from the POST body.
 	m := map[string]string{}

@@ -17,8 +17,7 @@ func TestDealer_Invoke(t *testing.T) {
 		return OutputStruct(is), nil
 	})
 
-	dealer := dm.Dealers["/testjob1"]
-	ret, err := dealer.Invoke([]byte(`{"Name":"bingoo"}`))
+	ret, err := dm.Invoke("/testjob1", []byte(`{"Name":"bingoo"}`))
 	assert.Nil(t, err)
 	assert.Equal(t, OutputStruct{Name: "bingoo"}, ret)
 
@@ -26,8 +25,7 @@ func TestDealer_Invoke(t *testing.T) {
 		return &OutputStruct{Name: is.Name}, nil
 	})
 
-	dealer = dm.Dealers["/testjob2"]
-	ret, err = dealer.Invoke([]byte(`{"Name":"bingoo"}`))
+	ret, err = dm.Invoke("/testjob2", []byte(`{"Name":"bingoo"}`))
 	assert.Nil(t, err)
 	assert.Equal(t, OutputStruct{Name: "bingoo"}, *(ret.(*OutputStruct)))
 
@@ -35,8 +33,7 @@ func TestDealer_Invoke(t *testing.T) {
 		return nil, errors.New("error occurred")
 	})
 
-	dealer = dm.Dealers["/testjob3"]
-	ret, err = dealer.Invoke([]byte(`{"Name":"bingoo"}`))
+	ret, err = dm.Invoke("/testjob3", []byte(`{"Name":"bingoo"}`))
 	assert.Nil(t, ret)
 	assert.Equal(t, "error occurred", err.Error())
 
@@ -44,8 +41,7 @@ func TestDealer_Invoke(t *testing.T) {
 		return nil, nil
 	})
 
-	dealer = dm.Dealers["/testjob4"]
-	ret, err = dealer.Invoke([]byte(`{"Name":"bingoo"}`))
+	ret, err = dm.Invoke("/testjob4", []byte(`{"Name":"bingoo"}`))
 	assert.Nil(t, ret)
 	assert.Nil(t, err)
 
@@ -59,8 +55,7 @@ func TestDealer_Invoke(t *testing.T) {
 		return os, nil
 	})
 
-	dealer = dm.Dealers["/testjob5"]
-	ret, err = dealer.Invoke([]byte(`[{"Name":"bingoo"}]`))
+	ret, err = dm.Invoke("/testjob5", []byte(`[{"Name":"bingoo"}]`))
 	assert.Nil(t, err)
 	assert.Equal(t, []OutputStruct{{Name: "bingoo"}}, ret)
 }

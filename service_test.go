@@ -2,7 +2,6 @@ package hraftd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -99,8 +98,7 @@ func doGet(t *testing.T, url, key string) string {
 }
 
 func doPost(t *testing.T, url, key, value string) {
-	b, _ := json.Marshal(map[string]string{key: value})
-	resp, err := http.Post(url+KeyPath, ContentTypeJSON, bytes.NewReader(b))
+	resp, err := http.Post(url+KeyPath, ContentTypeJSON, bytes.NewReader(JsonifyBytes(map[string]string{key: value})))
 
 	if err != nil {
 		t.Fatalf("POST request failed: %s", err)
