@@ -29,15 +29,19 @@ func (j *Ticker) start(fn func()) {
 	t := time.NewTicker(j.d)
 	defer t.Stop()
 
+	if fn != nil {
+		j.tickerFn = fn
+	}
+
+	if j.tickerFn != nil {
+		j.tickerFn()
+	}
+
 	for {
 		select {
 		case <-t.C:
-			if fn == nil {
-				fn = j.tickerFn
-			}
-
-			if fn != nil {
-				fn()
+			if j.tickerFn != nil {
+				j.tickerFn()
 			}
 		case <-j.stop:
 			return
