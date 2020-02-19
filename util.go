@@ -116,6 +116,22 @@ func JsonifyBytes(v interface{}) []byte {
 	return b
 }
 
+// TryParseJSON try parse v as JSON，return parsed object or failed to source v.
+func TryParseJSON(v string) interface{} {
+	if jv, err := ParseJSON(v); err == nil {
+		return jv
+	}
+
+	return v
+}
+
+// ParseJSON parses string to v.
+func ParseJSON(v string) (m interface{}, err error) {
+	err = json.Unmarshal([]byte(v), &m)
+
+	return
+}
+
 // WaitInterrupt waits on interrupt signal
 func WaitInterrupt() {
 	terminate := make(chan os.Signal, 1)

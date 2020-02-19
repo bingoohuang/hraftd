@@ -13,7 +13,7 @@ func (s *Service) handleKeyRequest(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		if key, ok := getKey(r, w); ok {
 			if v, ok := s.store.Get(key); ok {
-				WriteAsJSON(map[string]string{key: v}, w)
+				WriteAsJSON(map[string]interface{}{key: TryParseJSON(v)}, w)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 			}
