@@ -69,7 +69,7 @@ func leaderChanging(h *hraftd.Service) {
 		} else {
 			tick(h, cluster)
 		}
-	})
+	}, true)
 
 	for leader := range h.LeaderCh {
 		if leader {

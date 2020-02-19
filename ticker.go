@@ -4,14 +4,15 @@ import "time"
 
 // Ticker defines a ticker.
 type Ticker struct {
-	stop     chan bool
-	tickerFn func()
-	d        time.Duration
+	stop           chan bool
+	tickerFn       func()
+	d              time.Duration
+	startInstantly bool
 }
 
 // NewTicker creates a new ticker.
-func NewTicker(d time.Duration, tickerFn func()) *Ticker {
-	return &Ticker{stop: make(chan bool, 1), tickerFn: tickerFn, d: d}
+func NewTicker(d time.Duration, tickerFn func(), startInstantly bool) *Ticker {
+	return &Ticker{stop: make(chan bool, 1), tickerFn: tickerFn, d: d, startInstantly: startInstantly}
 }
 
 // StartAsync starts the ticker.
@@ -33,7 +34,7 @@ func (j *Ticker) start(fn func()) {
 		j.tickerFn = fn
 	}
 
-	if j.tickerFn != nil {
+	if j.tickerFn != nil && j.startInstantly {
 		j.tickerFn()
 	}
 
