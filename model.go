@@ -70,7 +70,7 @@ func (r *JoinRequest) Fix(remoteAddr string) {
 
 	_, port, _ := net.SplitHostPort(r.Addr)
 	r.Addr = fmt.Sprintf("%s:%s", host, port)
-	r.NodeID = r.NodeID.Fix(host)
+	r.NodeID.Fix(host)
 }
 
 // Rsp defines the Raft join response

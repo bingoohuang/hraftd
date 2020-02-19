@@ -19,6 +19,7 @@ github.com/bingoohuang/faker v0.0.0-20191122080657-247fa98a3272/go.mod h1:aafm3J
 github.com/bingoohuang/gonet v0.0.0-20190716021716-fd516efe8b31/go.mod h1:lSe5gMXAiQESg/xTshM6sByKvDkMGdDffZSXt0d64JI=
 github.com/bingoohuang/gonet v0.0.0-20200115021751-0f3c0466ab12 h1:x8X5EUcnmaFB0oahv9RV/QAbkfW7gt2WJ8LqSkvA5Q8=
 github.com/bingoohuang/gonet v0.0.0-20200115021751-0f3c0466ab12/go.mod h1:X6KsZUI8jGvpmIFAtQS9IKyyDcdSzSi/0Gcjf5bvI2k=
+github.com/bingoohuang/goreflect v0.0.0-20190712052741-f9e6d0b5f7fd h1:horohKpjOxu/ZiHUzDhMbfoUgthbXoiCEI2SvWkOVL4=
 github.com/bingoohuang/goreflect v0.0.0-20190712052741-f9e6d0b5f7fd/go.mod h1:rga5AtVf7Npiv04XZxTsd8LC4/VyEHr+sn4Vt1jWPNE=
 github.com/bingoohuang/gou v0.0.0-20191217063606-185f58ddca79 h1:GvhMjn9lENyPolWvu7/1JB+HgnKmN3HoLE5qU2sJ4Y8=
 github.com/bingoohuang/gou v0.0.0-20191217063606-185f58ddca79/go.mod h1:jyyu/57Psqg6/btyBwAT6E9dTgs5lfoHdqcQwD96uVU=
@@ -89,8 +90,6 @@ github.com/hashicorp/raft v1.1.2/go.mod h1:vPAJM8Asw6u8LxC3eJCUZmRP/E4QmUGE1R7g7
 github.com/hashicorp/raft-boltdb v0.0.0-20171010151810-6e5ba93211ea/go.mod h1:pNv7Wc3ycL6F5oOWn+tPGo2gWD4a5X+yp/ntwdKLjRk=
 github.com/hashicorp/raft-boltdb v0.0.0-20191021154308-4207f1bf0617 h1:CJDRE/2tBNFOrcoexD2nvTRbQEox3FDxl4NxIezp1b8=
 github.com/hashicorp/raft-boltdb v0.0.0-20191021154308-4207f1bf0617/go.mod h1:aUF6HQr8+t3FC/ZHAC+pZreUBhTaxumuu3L+d37uRxk=
-github.com/hjson/hjson-go v3.0.1+incompatible h1:JwOXblcMiBbiWue7iPkoFK9oXSnW8n+qXh/0Fio6TCo=
-github.com/hjson/hjson-go v3.0.1+incompatible/go.mod h1:qsetwF8NlsTsOTwZTApNlTCerV+b2GjYRRcIk4JMFio=
 github.com/howeyc/gopass v0.0.0-20190910152052-7cb4b85ec19c/go.mod h1:lADxMC39cJJqL93Duh1xhAs4I2Zs8mKS89XWXFGp9cs=
 github.com/jedib0t/go-pretty v4.3.0+incompatible/go.mod h1:XemHduiw8R651AF9Pt4FwCTKeG3oo7hrHJAoznj9nag=
 github.com/jehiah/go-strftime v0.0.0-20171201141054-1d33003b3869/go.mod h1:cJ6Cj7dQo+O6GJNiMx+Pa94qKj+TG8ONdKHgMNIyyag=

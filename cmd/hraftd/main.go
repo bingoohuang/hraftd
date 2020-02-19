@@ -20,10 +20,10 @@ func main() {
 
 	flag.Parse()
 	arg.Fix()
-	log.Printf("Args:%s\n", hraftd.Hjson(arg))
+	log.Printf("Args:%s\n", hraftd.Jsonify4Print(arg))
 
 	arg.ApplyInterceptor = func(_ *raft.Log, cmd hraftd.Command) bool {
-		fmt.Printf("received command %+v\n", cmd)
+		fmt.Printf("received command %s\n", hraftd.Jsonify4Print(cmd))
 
 		return false
 	}
@@ -34,7 +34,7 @@ func main() {
 			return nil, nil
 		}
 
-		log.Printf("received config items %s\n", hraftd.Hjson(meItems))
+		log.Printf("received config items %s\n", hraftd.Jsonify4Print(meItems))
 		return nil, nil
 	})
 
@@ -129,7 +129,7 @@ func demoApplyLogs(activePeers []hraftd.Peer, h *hraftd.Service) {
 		}
 	}
 
-	log.Printf("create items %s\n", hraftd.Hjson(items))
+	log.Printf("create items %s\n", hraftd.Jsonify4Print(items))
 
 	if err := h.Set(rigConf, hraftd.Jsonify(items)); err != nil {
 		log.Printf("fail to set rigConf, errror %v\n", err)

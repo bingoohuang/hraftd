@@ -6,10 +6,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
-
-	hjson "github.com/hjson/hjson-go"
 )
 
 // EmptyThen returns t if s is empty
@@ -87,13 +86,6 @@ func PathExists(p string) bool {
 	return true
 }
 
-// Hjson returns HJSON presentation of v
-func Hjson(v interface{}) string {
-	hj, _ := hjson.Marshal(v)
-
-	return strings.ReplaceAll(string(hj), "\n", "")
-}
-
 const dfmt = "2006-01-02 15:04:05.000"
 
 // FormatTime format time.
@@ -112,8 +104,21 @@ func Jsonify(v interface{}) string {
 	return string(JsonifyBytes(v))
 }
 
+// Jsonify4Print jsonifies v to JSON string for printing only
+func Jsonify4Print(v interface{}) string {
+	all := strings.ReplaceAll(Jsonify(v), `\"`, ``)
+	return strings.ReplaceAll(all, `"`, ``)
+}
+
 // JsonifyBytes jsonifies v to JSON []byte
 func JsonifyBytes(v interface{}) []byte {
 	b, _ := json.Marshal(v)
 	return b
+}
+
+// WaitInterrupt waits on interrupt signal
+func WaitInterrupt() {
+	terminate := make(chan os.Signal, 1)
+	signal.Notify(terminate, os.Interrupt)
+	<-terminate
 }
