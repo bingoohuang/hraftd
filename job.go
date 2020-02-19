@@ -42,6 +42,8 @@ type Dealer struct {
 
 // ErrDealerNoExists is the error for the dealer not exists.
 var ErrDealerNoExists = errors.New("dealer does not exist") // nolint
+// ErrDealerContinue is the error for the dealer bypass and should continue
+var ErrDealerContinue = errors.New("dealer bypass and should continue") // nolint
 
 // Invoke invokes the registered dealer function
 func (s *DealerMap) Invoke(dealerName string, requestBody []byte) (x interface{}, err error) {

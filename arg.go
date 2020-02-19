@@ -275,7 +275,7 @@ func (a *Arg) Intercept(l *raft.Log, c Command) (interface{}, bool) {
 	}
 
 	ret, err := a.Invoke(c.Key, []byte(c.Value))
-	if errors.Is(err, ErrDealerNoExists) {
+	if errors.Is(err, ErrDealerNoExists) || errors.Is(err, ErrDealerContinue) {
 		return nil, false
 	}
 
