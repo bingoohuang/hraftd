@@ -47,6 +47,8 @@ func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) error {
 
 	s.Printf("node %s at %s joined successfully", m.NodeID, m.Addr)
 
+	s.saveCluster()
+
 	WriteAsJSON(Rsp{OK: true, Msg: "OK"}, w)
 
 	return nil
@@ -62,25 +64,10 @@ func (s *Service) listenLeaderCh() {
 		default:
 		}
 
-		s.Printf("leaderChanged to %v", leaderChanged)
+		s.Printf("leader Changed to %v", leaderChanged)
 
 		if !leaderChanged {
 			continue
-		}
-
-		cluster, err := s.store.Cluster()
-		if err != nil {
-			s.Printf("s.store.Cluster failed %v", err)
-			continue
-		}
-
-		cv := Jsonify(cluster)
-		s.Printf("try s.store.Set /raft/cluster to %v", cv)
-
-		if err := s.store.Set("raft/cluster", cv); err != nil {
-			s.Printf("s.store.Set raft/cluster failed %v", err)
-		} else {
-			s.Printf("s.store.Set raft/cluster successfully")
 		}
 	}
 }
@@ -94,4 +81,21 @@ func (s *Service) handleCluster(w http.ResponseWriter, _ *http.Request) error {
 	WriteAsJSON(servers, w)
 
 	return nil
+}
+
+func (s *Service) saveCluster() {
+	cluster, err := s.store.Cluster()
+	if err != nil {
+		s.Printf("s.store.Cluster failed %v", err)
+		return
+	}
+
+	cv := Jsonify(cluster)
+	s.Printf("try s.store.Set /raft/cluster to %v", cv)
+
+	if err := s.store.Set("raft/cluster", cv); err != nil {
+		s.Printf("s.store.Set raft/cluster failed %v", err)
+	} else {
+		s.Printf("s.store.Set raft/cluster successfully")
+	}
 }
