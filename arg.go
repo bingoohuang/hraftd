@@ -185,7 +185,7 @@ func (a *Arg) fixAddr() {
 
 		por, _ := strconv.Atoi(port)
 		if por > 35565-1000 {
-			a.Panic("port %d is too large (<= 34565)", por)
+			a.Panicf("port %d is too large (<= 34565)", por)
 		}
 
 		host = If(a.isLocalHost(host), "", host)
@@ -204,7 +204,7 @@ func (a *Arg) fixAddr() {
 		// In Linux, the things root can do have been broken up into a set of capabilities.
 		// CAP_NET_BIND_SERVICE is the ability to bind to ports <= 1024.
 		if por < 1024+1000 {
-			a.Panic("port %d is too large (>= 2024)", por)
+			a.Panicf("port %d is too large (>= 2024)", por)
 		}
 
 		host = If(a.isLocalHost(host), "", host)
@@ -289,7 +289,7 @@ func (a *Arg) parseBootstrap() {
 
 		h, p, err := net.SplitHostPort(addr)
 		if err != nil {
-			a.Panic("fail to parse JoinAddrs %s error %v", a.JoinAddrs, err)
+			a.Panicf("fail to parse JoinAddrs %s error %v", a.JoinAddrs, err)
 		}
 
 		adr := fmt.Sprintf("%s:%s", EmptyThen(h, a.hostIP), p)

@@ -59,11 +59,11 @@ var DefaultLogger = &SLogger{Writer: log.New(os.Stdout, "", log.LstdFlags), IOWr
 // LoggerMore ...
 type LoggerMore interface {
 	Printf(format string, data ...interface{})
-	Debug(format string, data ...interface{})
-	Info(format string, data ...interface{})
-	Warn(format string, data ...interface{})
-	Error(format string, data ...interface{})
-	Panic(format string, data ...interface{})
+	Debugf(format string, data ...interface{})
+	Infof(format string, data ...interface{})
+	Warnf(format string, data ...interface{})
+	Errorf(format string, data ...interface{})
+	Panicf(format string, data ...interface{})
 }
 
 // LoggerAdapter ...
@@ -71,29 +71,29 @@ type LoggerAdapter struct {
 	Logger
 }
 
-// Debug prints debug
-func (l LoggerAdapter) Debug(format string, data ...interface{}) {
-	l.Log(LogLevelDebug, format, data...)
+// Debugf prints debug
+func (l LoggerAdapter) Debugf(format string, data ...interface{}) {
+	l.Logf(LogLevelDebug, format, data...)
 }
 
 // Printf prints info
 func (l LoggerAdapter) Printf(format string, data ...interface{}) {
-	l.Log(LogLevelInfo, format, data...)
+	l.Logf(LogLevelInfo, format, data...)
 }
 
-// Info prints info
-func (l LoggerAdapter) Info(format string, data ...interface{}) {
-	l.Log(LogLevelInfo, format, data...)
+// Infof prints info
+func (l LoggerAdapter) Infof(format string, data ...interface{}) {
+	l.Logf(LogLevelInfo, format, data...)
 }
 
-// Warn prints warn messages
-func (l LoggerAdapter) Warn(format string, data ...interface{}) {
-	l.Log(LogLevelWarn, format, data...)
+// Warnf prints warn messages
+func (l LoggerAdapter) Warnf(format string, data ...interface{}) {
+	l.Logf(LogLevelWarn, format, data...)
 }
 
-// Error prints error messages
-func (l LoggerAdapter) Error(format string, data ...interface{}) {
-	l.Log(LogLevelError, format, data...)
+// Errorf prints error messages
+func (l LoggerAdapter) Errorf(format string, data ...interface{}) {
+	l.Logf(LogLevelError, format, data...)
 }
 
 // Logger defines logger interface
@@ -104,8 +104,8 @@ type Logger interface {
 	GetLogLevel() LogLevel
 	// GetIOWriter returns io.Writer
 	GetIOWriter() io.Writer
-	// Log prints log
-	Log(level LogLevel, format string, data ...interface{})
+	// Logf prints log
+	Logf(level LogLevel, format string, data ...interface{})
 
 	LoggerMore
 }
@@ -132,16 +132,16 @@ func (l *SLogger) SetLogLevel(level LogLevel) { l.Level = level }
 // GetLogLevel gets the log level
 func (l SLogger) GetLogLevel() LogLevel { return l.Level }
 
-// Log prints log
-func (l SLogger) Log(level LogLevel, format string, data ...interface{}) {
+// Logf prints log
+func (l SLogger) Logf(level LogLevel, format string, data ...interface{}) {
 	if l.Level <= level {
 		l.Print("[" + level.String() + "] " + fmt.Sprintf(format, data...))
 	}
 }
 
-// Panic prints error messages and panics
-func (l SLogger) Panic(format string, data ...interface{}) {
-	l.Log(LogLevelError, format, data...)
+// Panicf prints error messages and panics
+func (l SLogger) Panicf(format string, data ...interface{}) {
+	l.Logf(LogLevelError, format, data...)
 
 	panic(fmt.Sprintf(format, data...))
 }

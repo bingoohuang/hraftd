@@ -8,19 +8,26 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/bingoohuang/faker"
+	"github.com/bingoohuang/gou/lo"
 	"github.com/bingoohuang/gou/ran"
 	"github.com/bingoohuang/hraftd"
 	"github.com/hashicorp/raft"
-	"github.com/thoas/go-funk"
+	funk "github.com/thoas/go-funk"
 )
 
 const rigConf = "rigconf"
 
 func main() {
 	arg := hraftd.DefineFlags(flag.CommandLine)
-	arg.Logger = hraftd.NewLogrusAdapter(logrus.New())
+
+	lo.DeclareLogPFlags()
 
 	flag.Parse()
+
+	logrusLogger := logrus.New()
+	logrusLogger.SetOutput(lo.SetupLog())
+	arg.Logger = hraftd.NewLogrusAdapter(logrusLogger)
+
 	arg.Fix()
 	arg.Printf("Args:%s", hraftd.Jsonify4Print(arg))
 
@@ -42,13 +49,13 @@ func main() {
 
 	h := hraftd.Create(arg)
 	if err := h.RegisterJobDealer("/myjob", myJob); err != nil {
-		arg.Panic("failed to register /myjob, error %v", err)
+		arg.Panicf("failed to register /myjob, error %v", err)
 	}
 
 	go leaderChanging(arg, h)
 
 	if err := h.StartAll(); err != nil {
-		arg.Panic("failed to start HTTP service: %s", err.Error())
+		arg.Panicf("failed to start HTTP service: %s", err.Error())
 	}
 
 	arg.Printf("hraftd started successfully")

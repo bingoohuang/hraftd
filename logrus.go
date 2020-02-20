@@ -40,8 +40,8 @@ func (l LogrusAdapter) GetIOWriter() io.Writer {
 	return l.Logrus.Writer()
 }
 
-// Log prints log
-func (l LogrusAdapter) Log(logLevel LogLevel, format string, data ...interface{}) {
+// Logf prints log
+func (l LogrusAdapter) Logf(logLevel LogLevel, format string, data ...interface{}) {
 	level, err := logrus.ParseLevel(logLevel.String())
 	if err != nil {
 		level = logrus.InfoLevel

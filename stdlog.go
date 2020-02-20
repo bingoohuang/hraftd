@@ -19,7 +19,7 @@ func (s *stdlogAdapter) Write(data []byte) (int, error) {
 	str := string(bytes.TrimRight(data, " \t\n"))
 
 	level, str := s.pickLevel(str)
-	s.log.Log(level, str)
+	s.log.Logf(level, str)
 
 	return len(data), nil
 }

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
+	hclog "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
@@ -168,10 +168,10 @@ func (s *RaftStore) getNodeState(nodeID NodeID) *Rsp {
 	r := &Rsp{}
 	u := nodeID.URLRaftState()
 	rsp, err := GetJSON(u, r)
-	s.Info("invoke get node state %s rsp %v", u, rsp)
+	s.Infof("invoke get node state %s rsp %v", u, rsp)
 
 	if err != nil {
-		s.Info("invoke %s error %v", u, err)
+		s.Infof("invoke %s error %v", u, err)
 	}
 
 	return r
@@ -188,7 +188,7 @@ func (s *RaftStore) Open() error {
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 	peerFileExits := PathExists(peerFile)
 
-	s.Info("RaftNodeDir %s exists %v", s.Arg.RaftNodeDir, peerFileExits)
+	s.Infof("RaftNodeDir %s exists %v", s.Arg.RaftNodeDir, peerFileExits)
 
 	logStore, stableStore, snapshots, err := s.createStores()
 	if err != nil {
@@ -237,7 +237,7 @@ func (s *RaftStore) recoverJoin(peerFile string) error {
 	//	return err
 	//}
 
-	s.Info("recovered from %s successfully", peerFile)
+	s.Infof("recovered from %s successfully", peerFile)
 
 	return nil
 }
@@ -343,7 +343,7 @@ func (s *RaftStore) Remove(nodeID string) error {
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
 func (s *RaftStore) Join(nodeID, addr string) error {
-	s.Info("received request to join node at %s", addr)
+	s.Infof("received request to join node at %s", addr)
 
 	if s.raft.State() != raft.Leader {
 		return ErrNotLeader
@@ -377,7 +377,7 @@ func (s *RaftStore) Join(nodeID, addr string) error {
 	}
 
 	if alreadyJoined {
-		s.Info("node %s at %s already member of cluster, ignoring join request", nodeID, addr)
+		s.Infof("node %s at %s already member of cluster, ignoring join request", nodeID, addr)
 
 		return nil
 	}
@@ -507,7 +507,7 @@ func (s *RaftStore) WaitForLeader(timeout time.Duration) (string, error) {
 
 			s.joinNodesFromLeader()
 		case <-tmr.C:
-			s.Info("waitForLeader timeout %v expired", timeout)
+			s.Infof("waitForLeader timeout %v expired", timeout)
 			return "", fmt.Errorf("WaitForLeader timeout expired")
 		}
 	}
@@ -526,13 +526,13 @@ func (s *RaftStore) tryFindAndJoinLeader(cluster RaftCluster) {
 	leader, _ := s.findLeader(cluster)
 
 	if leader.ID != "" {
-		s.Info("Leader found %+v", leader)
+		s.Infof("Leader found %+v", leader)
 		_ = Join(s, leader.ID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID)
 
 		return
 	}
 
-	s.Info("Leader not found")
+	s.Infof("Leader not found")
 }
 
 func (s *RaftStore) findLeader(cluster RaftCluster) (Peer, bool) {
@@ -567,7 +567,7 @@ func (s *RaftStore) WaitForApplied(timeout time.Duration) error {
 		return nil
 	}
 
-	s.Info("waiting for up to %s for application of initial logs", timeout)
+	s.Infof("waiting for up to %s for application of initial logs", timeout)
 
 	if err := s.WaitForAppliedIndex(s.raft.LastIndex(), timeout); err != nil {
 		return ErrOpenTimeout
@@ -612,7 +612,7 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	case "set":
 		t, err := ParseTime(c.Time)
 		if err != nil || t.Before(time.Now().Add(-100*time.Second)) { // nolint gomnd
-			s.Info("too old command  %+v, ignored", c)
+			s.Infof("too old command  %+v, ignored", c)
 			return nil
 		}
 
@@ -626,7 +626,7 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	case "delete":
 		return s.lockApplyOp(func() interface{} { delete(s.m, c.Key); return nil })
 	default:
-		s.Info("unrecognized Command op: %+v", c)
+		s.Infof("unrecognized Command op: %+v", c)
 	}
 
 	return nil
@@ -639,11 +639,11 @@ func (s *RaftStore) processSetRaftCluster(c Command) {
 
 	v := RaftCluster{}
 	if err := json.Unmarshal([]byte(c.Value), &v); err != nil {
-		s.Info("json.Unmarshal error %+v", err)
+		s.Infof("json.Unmarshal error %+v", err)
 	} else if err := s.writeClusterConfigEntries(v); err != nil {
-		s.Info("writeClusterConfigEntries error %+v", err)
+		s.Infof("writeClusterConfigEntries error %+v", err)
 	} else {
-		s.Info("writeClusterConfigEntries successfully")
+		s.Infof("writeClusterConfigEntries successfully")
 
 		if s.LeaderAddr() == "" {
 			s.tryFindAndJoinLeader(v)
@@ -722,8 +722,12 @@ type hclogLogger struct {
 	name string
 }
 
+func (h hclogLogger) Debug(msg string, args ...interface{}) { h.Logger.Debugf(msg, args...) }
+func (h hclogLogger) Info(msg string, args ...interface{})  { h.Logger.Infof(msg, args...) }
+func (h hclogLogger) Warn(msg string, args ...interface{})  { h.Logger.Warnf(msg, args...) }
+func (h hclogLogger) Error(msg string, args ...interface{}) { h.Logger.Errorf(msg, args...) }
 func (h hclogLogger) Log(level hclog.Level, msg string, args ...interface{}) {
-	h.Logger.Log(h.convertLevel(level), msg, args...)
+	h.Logger.Logf(h.convertLevel(level), msg, args...)
 }
 
 func (h hclogLogger) ImpliedArgs() []interface{}            { return h.args }

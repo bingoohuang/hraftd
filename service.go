@@ -23,7 +23,7 @@ func Create(arg *Arg) *Service {
 	s := New(arg)
 
 	if err := s.Open(); err != nil {
-		s.Panic("failed to open Store: %s", err.Error())
+		s.Panicf("failed to open Store: %s", err.Error())
 	}
 
 	return &Service{Arg: arg, store: s, DealerMap: MakeDealerMap(), LeaderCh: make(chan bool, 1)}
@@ -43,7 +43,7 @@ func (s *Service) StartRaft() error {
 	go s.listenLeaderCh()
 
 	if err := s.Arg.Join(); err != nil {
-		s.Panic("failed to join at %s: %s", s.Arg.JoinAddrs, err.Error())
+		s.Panicf("failed to join at %s: %s", s.Arg.JoinAddrs, err.Error())
 	}
 
 	waitTimeout := 100 * time.Second // nolint gomnd
@@ -64,7 +64,7 @@ func (s *Service) GoStartHTTP() (err error) {
 
 		server := http.Server{Handler: s}
 		if err := server.Serve(s.Ln); err != nil {
-			s.Panic("HTTP serve: %s", err)
+			s.Panicf("HTTP serve: %s", err)
 		}
 	}()
 

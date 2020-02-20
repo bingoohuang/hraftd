@@ -77,10 +77,10 @@ func (s *Service) listenLeaderCh() {
 		cv := Jsonify(cluster)
 		s.Printf("try s.store.Set /raft/cluster to %v", cv)
 
-		if err := s.store.Set("/raft/cluster", cv); err != nil {
-			s.Printf("s.store.Set /raft/cluster failed %v", err)
+		if err := s.store.Set("raft/cluster", cv); err != nil {
+			s.Printf("s.store.Set raft/cluster failed %v", err)
 		} else {
-			s.Printf("s.store.Set /raft/cluster suucessed")
+			s.Printf("s.store.Set raft/cluster successfully")
 		}
 	}
 }
