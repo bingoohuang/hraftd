@@ -376,10 +376,25 @@ func Join(logger Logger, joinAddr, raftAddr string, nodeID NodeID) error {
 	}
 
 	if r.OK {
-		return nil
+		return checkJoined(logger, nodeID)
 	}
 
 	return errors.New(r.Msg)
+}
+
+func checkJoined(logger Logger, nodeID NodeID) error {
+	cluster, err := Cluster(logger, nodeID)
+	if err != nil {
+		return err
+	}
+
+	for _, peer := range cluster.Servers {
+		if peer.ID == nodeID {
+			return nil
+		}
+	}
+
+	return nil
 }
 
 // Cluster retrieves the RaftCluster
