@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/creasty/defaults"
 	"github.com/hashicorp/raft"
@@ -318,19 +317,7 @@ func (a *Arg) Join() error {
 		return nil
 	}
 
-	addrLen := len(a.JoinAddrSlice)
-	if addrLen == 0 {
-		return nil
-	}
-
-	for i := 0; i < 10; i++ {
-		if i > 0 {
-			a.Printf("retry after 1s")
-			time.Sleep(1 * time.Second) // nolint gomnd
-		}
-
-		joinAddr := a.JoinAddrSlice[i%addrLen]
-
+	for _, joinAddr := range a.JoinAddrSlice {
 		if err := Join(a, joinAddr, a.RaftAddr, a.NodeID); err == nil {
 			return nil
 		}
