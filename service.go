@@ -46,7 +46,9 @@ func (s *Service) StartRaft() error {
 		for {
 			err := s.Arg.Join()
 			if err == nil {
-				break
+				s.Infof("joined at %s error %s successfully", s.Arg.JoinAddrs)
+
+				return
 			}
 
 			s.Errorf("failed to join at %s error %s, retry after 10s", s.Arg.JoinAddrs, err.Error())

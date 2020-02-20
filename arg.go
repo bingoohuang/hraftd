@@ -394,7 +394,7 @@ func checkJoined(logger Logger, nodeID NodeID) error {
 		}
 	}
 
-	return nil
+	return fmt.Errorf("checked failed for joined node %s", nodeID)
 }
 
 // Cluster retrieves the RaftCluster
