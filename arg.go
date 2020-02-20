@@ -66,28 +66,28 @@ type FlagNames struct {
 	Iface string `default:"iface"`
 }
 
-// FlagRmem defines InMem flag name.
+// FlagRmem defines InMem flag name. If empty, disable the flag.
 func FlagRmem(name string) FlagOptionFn { return func(f *FlagNames) { f.Rmem = name } }
 
-// FlagHaddr defines HTTPAddr flag name.
+// FlagHaddr defines HTTPAddr flag name. If empty, disable the flag.
 func FlagHaddr(name string) FlagOptionFn { return func(f *FlagNames) { f.Haddr = name } }
 
-// FlagHadv defines HTTPAdv flag name.
+// FlagHadv defines HTTPAdv flag name. If empty, disable the flag.
 func FlagHadv(name string) FlagOptionFn { return func(f *FlagNames) { f.Hadv = name } }
 
-// FlagRaddr defines RaftAddr flag name.
+// FlagRaddr defines RaftAddr flag name. If empty, disable the flag.
 func FlagRaddr(name string) FlagOptionFn { return func(f *FlagNames) { f.Raddr = name } }
 
-// FlagRadv defines RaftAdv flag name.
+// FlagRadv defines RaftAdv flag name. If empty, disable the flag.
 func FlagRadv(name string) FlagOptionFn { return func(f *FlagNames) { f.Radv = name } }
 
-// FlagRdir defines RaftNodeDir flag name.
+// FlagRdir defines RaftNodeDir flag name. If empty, disable the flag.
 func FlagRdir(name string) FlagOptionFn { return func(f *FlagNames) { f.Rdir = name } }
 
-// FlagRjoin defines JoinAddrs flag name.
+// FlagRjoin defines JoinAddrs flag name. If empty, disable the flag.
 func FlagRjoin(name string) FlagOptionFn { return func(f *FlagNames) { f.Rjoin = name } }
 
-// FlagIface defines IfaceName flag name.
+// FlagIface defines IfaceName flag name. If empty, disable the flag.
 func FlagIface(name string) FlagOptionFn { return func(f *FlagNames) { f.Iface = name } }
 
 // DefineFlags define raft args
@@ -95,16 +95,28 @@ func DefineFlags(p FlagProvider, flagOptionFns ...FlagOptionFn) *Arg {
 	f := createFlagNames(flagOptionFns)
 	a := MakeArg()
 
-	p.BoolVar(&a.InMem, f.Rmem, true, "Use in-memory storage for Raft")
-	p.StringVar(&a.HTTPAddr, f.Haddr, "", "HTTP server bind address")
-	p.StringVar(&a.HTTPAdv, f.Hadv, "", "Advertised HTTP address. If not set, same as HTTP server")
-	p.StringVar(&a.RaftAddr, f.Raddr, "", "Raft communication bind address. If not set, same as haddr(port+1000)")
-	p.StringVar(&a.RaftAdv, f.Radv, "", "Advertised Raft communication address. If not set, same as Raft bind")
-	p.StringVar(&a.RaftNodeDir, f.Rdir, "", "Raft data directory, default to ~/.hraftd/{id}")
-	p.StringVar(&a.JoinAddrs, f.Rjoin, "", "Set raft cluster join addresses separated by comma, if any")
-	p.StringVar(&a.IfaceName, f.Iface, "", "iface name to bind")
+	boolVar(p, &a.InMem, true, f.Rmem, "Use in-memory storage for Raft")
+	strVar(p, &a.HTTPAddr, f.Haddr, "HTTP server bind address")
+	strVar(p, &a.HTTPAdv, f.Hadv, "Advertised HTTP address. If not set, same as HTTP server")
+	strVar(p, &a.RaftAddr, f.Raddr, "Raft communication bind address. If not set, same as haddr(port+1000)")
+	strVar(p, &a.RaftAdv, f.Radv, "Advertised Raft communication address. If not set, same as Raft bind")
+	strVar(p, &a.RaftNodeDir, f.Rdir, "Raft data directory, default to ~/.hraftd/{id}")
+	strVar(p, &a.JoinAddrs, f.Rjoin, "Set raft cluster join addresses separated by comma, if any")
+	strVar(p, &a.IfaceName, f.Iface, "iface name to bind")
 
 	return a
+}
+
+func boolVar(p FlagProvider, ptr *bool, defaultValue bool, name, usage string) {
+	if name != "" {
+		p.BoolVar(ptr, name, defaultValue, usage)
+	}
+}
+
+func strVar(p FlagProvider, ptr *string, name, usage string) {
+	if name != "" {
+		p.StringVar(ptr, name, "", usage)
+	}
 }
 
 // CreateArg creates Arg by ViperProvider implementation.
@@ -129,12 +141,12 @@ func CreateArg(p ViperProvider, flagOptionFns ...FlagOptionFn) *Arg {
 func createFlagNames(flagOptionFns []FlagOptionFn) *FlagNames {
 	f := &FlagNames{}
 
-	for _, fn := range flagOptionFns {
-		fn(f)
-	}
-
 	if err := defaults.Set(f); err != nil {
 		logrus.Warnf("failed to set defaults %v", err)
+	}
+
+	for _, fn := range flagOptionFns {
+		fn(f)
 	}
 
 	return f
