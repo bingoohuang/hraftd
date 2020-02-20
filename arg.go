@@ -329,8 +329,7 @@ func (a *Arg) Join() error {
 // Intercept intercepts the raft log applying.
 func (a *Arg) Intercept(l *raft.Log, c Command) (interface{}, bool) {
 	if a.ApplyInterceptor != nil {
-		intercepted := a.ApplyInterceptor(l, c)
-		if intercepted {
+		if intercepted := a.ApplyInterceptor(l, c); intercepted {
 			return nil, true
 		}
 	}
