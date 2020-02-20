@@ -72,6 +72,7 @@ func (t *testStore) RaftStats() map[string]interface{}             { return map[
 func (t *testStore) Cluster() (RaftCluster, error)                 { return RaftCluster{}, nil }
 func (t *testStore) LeadServer() (Peer, error)                     { return Peer{}, nil }
 func (t *testStore) WaitForLeader(_ time.Duration) (string, error) { return "", nil }
+func (t *testStore) WaitForApplied(_ time.Duration) error          { return nil }
 func (t *testStore) LeaderCh() <-chan bool                         { return nil }
 func (t *testStore) Get(key string) (string, bool)                 { return t.m[key], true }
 func (t *testStore) Set(key, value string) error                   { t.m[key] = value; return nil }

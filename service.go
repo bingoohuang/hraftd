@@ -46,10 +46,9 @@ func (s *Service) StartRaft() error {
 		s.Panic("failed to join at %s: %s", s.Arg.JoinAddrs, err.Error())
 	}
 
-	leader, _ := s.store.WaitForLeader(100 * time.Second) // nolint gomnd
-	if leader != "" {
-		return nil
-	}
+	waitTimeout := 100 * time.Second // nolint gomnd
+	_, _ = s.store.WaitForLeader(waitTimeout)
+	_ = s.store.WaitForApplied(waitTimeout)
 
 	return nil
 }

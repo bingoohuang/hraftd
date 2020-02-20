@@ -34,6 +34,10 @@ type Store interface {
 	// WaitForLeader blocks until a leader is detected, or the timeout expires.
 	WaitForLeader(timeout time.Duration) (string, error)
 
+	// WaitForApplied waits for all Raft log entries to to be applied to the
+	// underlying database.
+	WaitForApplied(timeout time.Duration) error
+
 	// LeaderCh is used to get a channel which delivers signals on
 	// acquiring or losing leadership. It sends true if we become
 	// the leader, and false if we lose it. The channel is not buffered,

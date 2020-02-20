@@ -726,10 +726,8 @@ func (h hclogLogger) Log(level hclog.Level, msg string, args ...interface{}) {
 	h.Logger.Log(h.convertLevel(level), msg, args...)
 }
 
-func (h hclogLogger) ImpliedArgs() []interface{} { return h.args }
-
-func (h hclogLogger) Name() string { return h.name }
-
+func (h hclogLogger) ImpliedArgs() []interface{}            { return h.args }
+func (h hclogLogger) Name() string                          { return h.name }
 func (h hclogLogger) Trace(msg string, args ...interface{}) {}
 
 func (h hclogLogger) IsTrace() bool { return false }
