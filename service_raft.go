@@ -2,7 +2,6 @@ package hraftd
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -40,13 +39,13 @@ func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) error {
 
 	m.Fix(EmptyThen(r.Header.Get(XOriginRemoteAddr), r.RemoteAddr))
 
-	log.Printf("received join request for remote node %s at %s\n", m.NodeID, m.Addr)
+	s.Printf("received join request for remote node %s at %s", m.NodeID, m.Addr)
 
 	if err := s.store.Join(string(m.NodeID), m.Addr); err != nil {
 		return err
 	}
 
-	log.Printf("node %s at %s joined successfully\n", m.NodeID, m.Addr)
+	s.Printf("node %s at %s joined successfully", m.NodeID, m.Addr)
 
 	WriteAsJSON(Rsp{OK: true, Msg: "OK"}, w)
 
@@ -63,7 +62,7 @@ func (s *Service) listenLeaderCh() {
 		default:
 		}
 
-		log.Printf("leaderChanged to %v\n", leaderChanged)
+		s.Printf("leaderChanged to %v", leaderChanged)
 
 		if !leaderChanged {
 			continue
@@ -71,17 +70,17 @@ func (s *Service) listenLeaderCh() {
 
 		cluster, err := s.store.Cluster()
 		if err != nil {
-			log.Printf("s.store.Cluster failed %v\n", err)
+			s.Printf("s.store.Cluster failed %v", err)
 			continue
 		}
 
 		cv := Jsonify(cluster)
-		log.Printf("try s.store.Set /raft/cluster to %v\n", cv)
+		s.Printf("try s.store.Set /raft/cluster to %v", cv)
 
 		if err := s.store.Set("/raft/cluster", cv); err != nil {
-			log.Printf("s.store.Set /raft/cluster failed %v\n", err)
+			s.Printf("s.store.Set /raft/cluster failed %v", err)
 		} else {
-			log.Printf("s.store.Set /raft/cluster suucessed\n")
+			s.Printf("s.store.Set /raft/cluster suucessed")
 		}
 	}
 }

@@ -3,7 +3,6 @@ package hraftd
 import (
 	"encoding/json"
 	"errors"
-	"log"
 )
 
 // JobRsp defines the Job Response structure.
@@ -14,20 +13,20 @@ type JobRsp struct {
 }
 
 // DistributeJob distributes job to the peer node in the raft clusters.
-func (p Peer) DistributeJob(path string, req interface{}, rsp interface{}) error {
+func (p Peer) DistributeJob(logger Logger, path string, req interface{}, rsp interface{}) error {
 	jobURL := p.ID.URL(DoJobPath + path)
-	log.Printf("dispatch job %+v to %s\n", req, jobURL)
+	logger.Printf("dispatch job %s to %s", Jsonify4Print(req), jobURL)
 
 	jobRsp := JobRsp{}
 	stateCode, resp, err := PostJSON(jobURL, req, &jobRsp)
-	log.Printf("job response %d %s\n", stateCode, resp)
+	logger.Printf("dispatch job response %d %s", stateCode, resp)
 
 	if err != nil {
-		log.Printf("fail to post job error %s\n", err.Error())
+		logger.Printf("fail to post job error %s", err.Error())
 		return err
 	}
 
-	log.Printf("statecode:%d, rsp OK: %v, Msg:%s\n", stateCode, jobRsp.OK, jobRsp.Msg)
+	logger.Printf("dispatch job stateCode:%d, rsp OK: %v, Msg:%s", stateCode, jobRsp.OK, jobRsp.Msg)
 
 	if !jobRsp.OK {
 		return errors.New(jobRsp.Msg)

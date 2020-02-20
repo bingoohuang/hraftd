@@ -2,7 +2,6 @@ package hraftd
 
 import (
 	"errors"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -13,7 +12,7 @@ import (
 type Service struct {
 	store Store
 	Ln    net.Listener
-	Arg   *Arg
+	*Arg
 
 	LeaderCh chan bool
 	DealerMap
@@ -24,7 +23,7 @@ func Create(arg *Arg) *Service {
 	s := New(arg)
 
 	if err := s.Open(); err != nil {
-		log.Fatalf("failed to open Store: %s", err.Error())
+		s.Panic("failed to open Store: %s", err.Error())
 	}
 
 	return &Service{Arg: arg, store: s, DealerMap: MakeDealerMap(), LeaderCh: make(chan bool, 1)}
@@ -44,7 +43,7 @@ func (s *Service) StartRaft() error {
 	go s.listenLeaderCh()
 
 	if err := s.Arg.Join(); err != nil {
-		log.Fatalf("failed to join at %s: %s\n", s.Arg.JoinAddrs, err.Error())
+		s.Panic("failed to join at %s: %s", s.Arg.JoinAddrs, err.Error())
 	}
 
 	leader, _ := s.store.WaitForLeader(100 * time.Second) // nolint gomnd
@@ -66,7 +65,7 @@ func (s *Service) GoStartHTTP() (err error) {
 
 		server := http.Server{Handler: s}
 		if err := server.Serve(s.Ln); err != nil {
-			log.Fatalf("HTTP serve: %s\n", err)
+			s.Panic("HTTP serve: %s", err)
 		}
 	}()
 
@@ -82,7 +81,7 @@ func (s *Service) Addr() net.Addr { return s.Ln.Addr() }
 // ServeHTTP allows Service to serve HTTP requests.
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	log.Printf("received request [%s] %s for %s\n", r.Method, path, r.RemoteAddr)
+	s.Printf("received request [%s] %s for %s", r.Method, path, r.RemoteAddr)
 
 	switch {
 	case strings.HasPrefix(path, KeyPath):
@@ -151,7 +150,7 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error 
 		return errors.New("failed to get raft leader")
 	}
 
-	log.Printf("forward %s to leader %s\n", r.URL.String(), addr)
+	s.Printf("forward %s to leader %s", r.URL.String(), addr)
 
 	if xor := r.Header.Get(XOriginRemoteAddr); xor != "" {
 		return errors.New("forward two times not allowed")

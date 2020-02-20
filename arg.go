@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/creasty/defaults"
 	"github.com/hashicorp/raft"
 )
@@ -32,12 +30,13 @@ type Arg struct {
 
 	IfaceName string // 绑定网卡名称
 
-	ApplyInterceptor ApplyInterceptor `json:"-"`
-	JoinAddrSlice    []string
-
-	LogDealer
+	JoinAddrSlice []string
 
 	hostIP string
+
+	ApplyInterceptor ApplyInterceptor `json:"-"`
+	LogDealer        `json:"-"`
+	Logger           `json:"-"`
 }
 
 // MakeArg makes a Arg
@@ -142,7 +141,7 @@ func createFlagNames(flagOptionFns []FlagOptionFn) *FlagNames {
 	f := &FlagNames{}
 
 	if err := defaults.Set(f); err != nil {
-		logrus.Warnf("failed to set defaults %v", err)
+		log.Printf("failed to set defaults %v", err)
 	}
 
 	for _, fn := range flagOptionFns {
@@ -161,6 +160,10 @@ type ViperProvider interface {
 
 // Fix fixes the arg for some defaults.
 func (a *Arg) Fix() {
+	if a.Logger == nil {
+		a.Logger = DefaultLogger
+	}
+
 	a.hostIP = InferHostIPv4(a.IfaceName)
 
 	a.fixAddr()
@@ -182,7 +185,7 @@ func (a *Arg) fixAddr() {
 
 		por, _ := strconv.Atoi(port)
 		if por > 35565-1000 {
-			log.Panicf("port %d is too large (<= 34565)\n", por)
+			a.Panic("port %d is too large (<= 34565)", por)
 		}
 
 		host = If(a.isLocalHost(host), "", host)
@@ -201,7 +204,7 @@ func (a *Arg) fixAddr() {
 		// In Linux, the things root can do have been broken up into a set of capabilities.
 		// CAP_NET_BIND_SERVICE is the ability to bind to ports <= 1024.
 		if por < 1024+1000 {
-			log.Panicf("port %d is too large (>= 2024)\n", por)
+			a.Panic("port %d is too large (>= 2024)", por)
 		}
 
 		host = If(a.isLocalHost(host), "", host)
@@ -286,7 +289,7 @@ func (a *Arg) parseBootstrap() {
 
 		h, p, err := net.SplitHostPort(addr)
 		if err != nil {
-			log.Fatalf("fail to parse JoinAddrs %s error %v\n", a.JoinAddrs, err)
+			a.Panic("fail to parse JoinAddrs %s error %v", a.JoinAddrs, err)
 		}
 
 		adr := fmt.Sprintf("%s:%s", EmptyThen(h, a.hostIP), p)
@@ -322,13 +325,13 @@ func (a *Arg) Join() error {
 
 	for i := 0; i < 10; i++ {
 		if i > 0 {
-			log.Printf("retry after 1s\n")
+			a.Printf("retry after 1s")
 			time.Sleep(1 * time.Second) // nolint gomnd
 		}
 
 		joinAddr := a.JoinAddrSlice[i%addrLen]
 
-		if err := Join(joinAddr, a.RaftAddr, a.NodeID); err == nil {
+		if err := Join(a, joinAddr, a.RaftAddr, a.NodeID); err == nil {
 			return nil
 		}
 	}
@@ -358,16 +361,16 @@ func (a *Arg) Intercept(l *raft.Log, c Command) (interface{}, bool) {
 }
 
 // Join joins current node (raftAddr and nodeID) to joinAddr.
-func Join(joinAddr, raftAddr string, nodeID NodeID) error {
+func Join(logger Logger, joinAddr, raftAddr string, nodeID NodeID) error {
 	joinURL := BindAddr(joinAddr).URLRaftJoin()
-	log.Printf("joinURL %s\n", joinURL)
+	logger.Printf("joinURL %s", joinURL)
 
 	r := &Rsp{}
 	stateCode, resp, err := PostJSON(joinURL, JoinRequest{Addr: raftAddr, NodeID: nodeID}, r)
-	log.Printf("join response %d %s\n", stateCode, resp)
+	logger.Printf("join response %d %s", stateCode, resp)
 
 	if err != nil {
-		log.Printf("joined error %s\n", err.Error())
+		logger.Printf("joined error %s", err.Error())
 
 		return err
 	}
@@ -380,13 +383,13 @@ func Join(joinAddr, raftAddr string, nodeID NodeID) error {
 }
 
 // Cluster retrieves the RaftCluster
-func Cluster(nodeID NodeID) (v RaftCluster, err error) {
+func Cluster(logger Logger, nodeID NodeID) (v RaftCluster, err error) {
 	clusterURL := nodeID.URLRaftCluster()
-	log.Printf("GET Cluster %s\n", clusterURL)
+	logger.Printf("GET Cluster %s", clusterURL)
 
 	rsp, err := GetJSON(clusterURL, &v)
 
-	log.Printf("GET Cluster %s, result %+v\n", clusterURL, rsp)
+	logger.Printf("GET Cluster %s, result %+v", clusterURL, rsp)
 
 	return v, err
 }

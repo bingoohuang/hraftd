@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
@@ -38,16 +40,13 @@ type RaftStore struct {
 
 	raft *raft.Raft // The consensus mechanism
 
-	logger *log.Logger
-	Arg    *Arg
+	*Arg
 }
 
 // New returns a new Store.
 func New(arg *Arg) *RaftStore {
 	return &RaftStore{
-		m:      make(map[string]string),
-		logger: log.New(os.Stderr, "[store] ", log.LstdFlags),
-
+		m:   make(map[string]string),
 		Arg: arg,
 	}
 }
@@ -169,10 +168,10 @@ func (s *RaftStore) getNodeState(nodeID NodeID) *Rsp {
 	r := &Rsp{}
 	u := nodeID.URLRaftState()
 	rsp, err := GetJSON(u, r)
-	s.logger.Printf("invoke get node state %s rsp %v\n", u, rsp)
+	s.Info("invoke get node state %s rsp %v", u, rsp)
 
 	if err != nil {
-		s.logger.Printf("invoke %s error %v", u, err)
+		s.Info("invoke %s error %v", u, err)
 	}
 
 	return r
@@ -189,7 +188,7 @@ func (s *RaftStore) Open() error {
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 	peerFileExits := PathExists(peerFile)
 
-	s.logger.Printf("RaftNodeDir %s exists %v\n", s.Arg.RaftNodeDir, peerFileExits)
+	s.Info("RaftNodeDir %s exists %v", s.Arg.RaftNodeDir, peerFileExits)
 
 	logStore, stableStore, snapshots, err := s.createStores()
 	if err != nil {
@@ -200,6 +199,8 @@ func (s *RaftStore) Open() error {
 	if err != nil {
 		return err
 	}
+
+	config.Logger = &hclogLogger{Logger: s, name: "[raft]"}
 
 	r, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, t)
 	if err != nil {
@@ -236,7 +237,7 @@ func (s *RaftStore) recoverJoin(peerFile string) error {
 	//	return err
 	//}
 
-	s.logger.Printf("recovered from %s successfully\n", peerFile)
+	s.Info("recovered from %s successfully", peerFile)
 
 	return nil
 }
@@ -255,7 +256,7 @@ func (s *RaftStore) tryJoinLeader(c raft.Configuration) bool {
 		return false
 	}
 
-	if err := Join(leaderID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID); err == nil {
+	if err := Join(s, leaderID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID); err == nil {
 		return true
 	}
 
@@ -342,7 +343,7 @@ func (s *RaftStore) Remove(nodeID string) error {
 // Join joins a node, identified by nodeID and located at addr, to this store.
 // The node must be ready to respond to Raft communications at that address.
 func (s *RaftStore) Join(nodeID, addr string) error {
-	s.logger.Printf("received request to join node at %s", addr)
+	s.Info("received request to join node at %s", addr)
 
 	if s.raft.State() != raft.Leader {
 		return ErrNotLeader
@@ -376,7 +377,7 @@ func (s *RaftStore) Join(nodeID, addr string) error {
 	}
 
 	if alreadyJoined {
-		s.logger.Printf("node %s at %s already member of cluster, ignoring join request", nodeID, addr)
+		s.Info("node %s at %s already member of cluster, ignoring join request", nodeID, addr)
 
 		return nil
 	}
@@ -506,7 +507,7 @@ func (s *RaftStore) WaitForLeader(timeout time.Duration) (string, error) {
 
 			s.joinNodesFromLeader()
 		case <-tmr.C:
-			s.logger.Printf("waitForLeader timeout %v expired\n", timeout)
+			s.Info("waitForLeader timeout %v expired", timeout)
 			return "", fmt.Errorf("WaitForLeader timeout expired")
 		}
 	}
@@ -525,13 +526,13 @@ func (s *RaftStore) tryFindAndJoinLeader(cluster RaftCluster) {
 	leader, _ := s.findLeader(cluster)
 
 	if leader.ID != "" {
-		s.logger.Printf("Leader found %+v\n", leader)
-		_ = Join(leader.ID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID)
+		s.Info("Leader found %+v", leader)
+		_ = Join(s, leader.ID.HTTPAddr(), s.Arg.RaftAddr, s.Arg.NodeID)
 
 		return
 	}
 
-	s.logger.Printf("Leader not found\n")
+	s.Info("Leader not found")
 }
 
 func (s *RaftStore) findLeader(cluster RaftCluster) (Peer, bool) {
@@ -540,7 +541,7 @@ func (s *RaftStore) findLeader(cluster RaftCluster) (Peer, bool) {
 			return peer, true
 		}
 
-		cl, err := Cluster(peer.ID)
+		cl, err := Cluster(s, peer.ID)
 		if err != nil {
 			continue
 		}
@@ -566,7 +567,7 @@ func (s *RaftStore) WaitForApplied(timeout time.Duration) error {
 		return nil
 	}
 
-	s.logger.Printf("waiting for up to %s for application of initial logs", timeout)
+	s.Info("waiting for up to %s for application of initial logs", timeout)
 
 	if err := s.WaitForAppliedIndex(s.raft.LastIndex(), timeout); err != nil {
 		return ErrOpenTimeout
@@ -611,7 +612,7 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	case "set":
 		t, err := ParseTime(c.Time)
 		if err != nil || t.Before(time.Now().Add(-100*time.Second)) { // nolint gomnd
-			s.logger.Printf("too old command  %+v, ignored\n", c)
+			s.Info("too old command  %+v, ignored", c)
 			return nil
 		}
 
@@ -625,7 +626,7 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	case "delete":
 		return s.lockApplyOp(func() interface{} { delete(s.m, c.Key); return nil })
 	default:
-		s.logger.Printf("unrecognized Command op: %+v\n", c)
+		s.Info("unrecognized Command op: %+v", c)
 	}
 
 	return nil
@@ -638,11 +639,11 @@ func (s *RaftStore) processSetRaftCluster(c Command) {
 
 	v := RaftCluster{}
 	if err := json.Unmarshal([]byte(c.Value), &v); err != nil {
-		s.logger.Printf("json.Unmarshal error %+v\n", err)
+		s.Info("json.Unmarshal error %+v", err)
 	} else if err := s.writeClusterConfigEntries(v); err != nil {
-		s.logger.Printf("writeClusterConfigEntries error %+v\n", err)
+		s.Info("writeClusterConfigEntries error %+v", err)
 	} else {
-		s.logger.Printf("writeClusterConfigEntries successfully\n")
+		s.Info("writeClusterConfigEntries successfully")
 
 		if s.LeaderAddr() == "" {
 			s.tryFindAndJoinLeader(v)
@@ -713,4 +714,75 @@ func (s *RaftStore) lockApplyOp(fn func() interface{}) interface{} {
 	defer s.mu.Unlock()
 
 	return fn()
+}
+
+type hclogLogger struct {
+	Logger
+	args []interface{}
+	name string
+}
+
+func (h hclogLogger) Log(level hclog.Level, msg string, args ...interface{}) {
+	h.Logger.Log(h.convertLevel(level), msg, args...)
+}
+
+func (h hclogLogger) ImpliedArgs() []interface{} { return h.args }
+
+func (h hclogLogger) Name() string { return h.name }
+
+func (h hclogLogger) Trace(msg string, args ...interface{}) {}
+
+func (h hclogLogger) IsTrace() bool { return false }
+func (h hclogLogger) IsDebug() bool { return h.GetLogLevel() <= LogLevelDebug }
+func (h hclogLogger) IsInfo() bool  { return h.GetLogLevel() <= LogLevelInfo }
+func (h hclogLogger) IsWarn() bool  { return h.GetLogLevel() <= LogLevelWarn }
+func (h hclogLogger) IsError() bool { return h.GetLogLevel() <= LogLevelError }
+
+func (h hclogLogger) With(args ...interface{}) hclog.Logger {
+	return &hclogLogger{Logger: h.Logger, args: args, name: h.name}
+}
+
+// Create a logger that will prepend the name string on the front of all messages.
+// If the logger already has a name, the new value will be appended to the current
+// name. That way, a major subsystem can use this to decorate all it's own logs
+// without losing context.
+func (h hclogLogger) Named(name string) hclog.Logger {
+	return &hclogLogger{Logger: h.Logger, args: h.args, name: name + h.name}
+}
+
+// Create a logger that will prepend the name string on the front of all messages.
+// This sets the name of the logger to the value directly, unlike Named which honor
+// the current name as well.
+func (h hclogLogger) ResetNamed(name string) hclog.Logger {
+	return &hclogLogger{Logger: h.Logger, args: h.args, name: name}
+}
+
+func (h *hclogLogger) convertLevel(level hclog.Level) LogLevel {
+	switch level {
+	case hclog.Debug:
+		return LogLevelDebug
+	case hclog.Info:
+		return LogLevelInfo
+	case hclog.Warn:
+		return LogLevelWarn
+	case hclog.Error:
+		return LogLevelError
+	default:
+		return LogLevelInfo
+	}
+}
+func (h *hclogLogger) SetLevel(level hclog.Level) {
+	h.SetLogLevel(h.convertLevel(level))
+}
+
+func (h hclogLogger) StandardLogger(opts *hclog.StandardLoggerOptions) *log.Logger {
+	if opts == nil {
+		opts = &hclog.StandardLoggerOptions{}
+	}
+
+	return log.New(h.StandardWriter(opts), "", 0)
+}
+
+func (h hclogLogger) StandardWriter(opts *hclog.StandardLoggerOptions) io.Writer {
+	return &stdlogAdapter{log: h.Logger, inferLevels: opts.InferLevels}
 }

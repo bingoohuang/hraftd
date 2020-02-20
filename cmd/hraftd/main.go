@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/bingoohuang/faker"
 	"github.com/bingoohuang/gou/ran"
@@ -17,13 +18,14 @@ const rigConf = "rigconf"
 
 func main() {
 	arg := hraftd.DefineFlags(flag.CommandLine)
+	arg.Logger = hraftd.NewLogrusAdapter(logrus.New())
 
 	flag.Parse()
 	arg.Fix()
-	log.Printf("Args:%s\n", hraftd.Jsonify4Print(arg))
+	arg.Printf("Args:%s", hraftd.Jsonify4Print(arg))
 
 	arg.ApplyInterceptor = func(_ *raft.Log, cmd hraftd.Command) bool {
-		fmt.Printf("received command %s\n", hraftd.Jsonify4Print(cmd))
+		arg.Printf("received command %s", hraftd.Jsonify4Print(cmd))
 
 		return false
 	}
@@ -34,24 +36,24 @@ func main() {
 			return nil, nil
 		}
 
-		log.Printf("received config items %s\n", hraftd.Jsonify4Print(meItems))
+		arg.Printf("received config items %s", hraftd.Jsonify4Print(meItems))
 		return nil, nil
 	})
 
 	h := hraftd.Create(arg)
 	if err := h.RegisterJobDealer("/myjob", myJob); err != nil {
-		log.Fatalf("failed to register /myjob, error %v\n", err)
+		arg.Panic("failed to register /myjob, error %v", err)
 	}
 
-	go leaderChanging(h)
+	go leaderChanging(arg, h)
 
 	if err := h.StartAll(); err != nil {
-		log.Fatalf("failed to start HTTP service: %s", err.Error())
+		arg.Panic("failed to start HTTP service: %s", err.Error())
 	}
 
-	log.Println("hraftd started successfully")
+	arg.Printf("hraftd started successfully")
 	hraftd.WaitInterrupt()
-	log.Println("hraftd exiting")
+	arg.Printf("hraftd exiting")
 }
 
 // RigConfItem defines 配置项
@@ -61,13 +63,13 @@ type RigConfItem struct {
 	NodeID hraftd.NodeID `json:"node_id"`
 }
 
-func leaderChanging(h *hraftd.Service) {
+func leaderChanging(logger hraftd.Logger, h *hraftd.Service) {
 	tik := hraftd.NewTicker(10*time.Second, func() { // nolint gomnd
 		cluster, err := h.RaftCluster()
 		if err != nil {
-			fmt.Printf("h.Store.Cluster error %v\n", err)
+			logger.Printf("h.Store.Cluster error %v", err)
 		} else {
-			tick(h, cluster)
+			tick(logger, h, cluster)
 		}
 	}, true)
 
@@ -80,14 +82,14 @@ func leaderChanging(h *hraftd.Service) {
 	}
 }
 
-func tick(h *hraftd.Service, c hraftd.RaftCluster) {
+func tick(logger hraftd.Logger, h *hraftd.Service, c hraftd.RaftCluster) {
 	activePeers := c.ActivePeers()
 
-	demoApplyLogs(activePeers, h)
-	demoDistributeJobs(activePeers)
+	demoApplyLogs(logger, activePeers, h)
+	demoDistributeJobs(logger, activePeers)
 }
 
-func demoDistributeJobs(activePeers []hraftd.Peer) {
+func demoDistributeJobs(logger hraftd.Logger, activePeers []hraftd.Peer) {
 	serverLen := len(activePeers)
 
 	// demo 10 jobs
@@ -98,25 +100,25 @@ func demoDistributeJobs(activePeers []hraftd.Peer) {
 			jobIndex := i % serverLen
 			peer := activePeers[jobIndex]
 			r := &JobRsp{}
-			err := peer.DistributeJob("/myjob", req, r)
+			err := peer.DistributeJob(logger, "/myjob", req, r)
 
 			if err != nil {
-				fmt.Printf("DistributeJob error %v\n", err)
+				logger.Printf("distribute job error %v", err)
 			} else {
-				fmt.Printf("DistributeJob successfully, rsp :%+v\n", r)
+				logger.Printf("distribute job successfully, rsp :%+v", r)
 			}
 		} else {
 			rsp, err := myJob(&req)
 			if err != nil {
-				fmt.Printf("process locally error %v\n", err)
+				logger.Printf("process locally error %v", err)
 			} else {
-				fmt.Printf("process locally successfully, rsp :%+v\n", rsp)
+				logger.Printf("process locally successfully, rsp :%+v", rsp)
 			}
 		}
 	}
 }
 
-func demoApplyLogs(activePeers []hraftd.Peer, h *hraftd.Service) {
+func demoApplyLogs(logger hraftd.Logger, activePeers []hraftd.Peer, h *hraftd.Service) {
 	items := make([]RigConfItem, 0)
 	// demo applying log
 	for _, peer := range activePeers {
@@ -129,10 +131,10 @@ func demoApplyLogs(activePeers []hraftd.Peer, h *hraftd.Service) {
 		}
 	}
 
-	log.Printf("create items %s\n", hraftd.Jsonify4Print(items))
+	logger.Printf("create items %s", hraftd.Jsonify4Print(items))
 
 	if err := h.Set(rigConf, hraftd.Jsonify(items)); err != nil {
-		log.Printf("fail to set rigConf, errror %v\n", err)
+		logger.Printf("fail to set rigConf, errror %v", err)
 	}
 }
 

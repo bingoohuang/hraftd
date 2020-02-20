@@ -41,7 +41,6 @@ func getKey(r *http.Request, w http.ResponseWriter) (string, bool) {
 		return key, true
 	}
 
-	// nolint gomnd
 	w.WriteHeader(http.StatusBadRequest)
 
 	return "", false
