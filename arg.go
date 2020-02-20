@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/creasty/defaults"
 	"github.com/hashicorp/raft"
 )
 
@@ -48,20 +51,93 @@ type FlagProvider interface {
 	StringVar(p *string, name string, value string, usage string)
 }
 
+// FlagOptionFn defines FlagOption option func prototype.
+type FlagOptionFn func(flagNames *FlagNames)
+
+// FlagNames defines struct for flag names.
+type FlagNames struct {
+	Rmem  string `default:"rmem"`
+	Haddr string `default:"haddr"`
+	Hadv  string `default:"hadv"`
+	Raddr string `default:"raddr"`
+	Radv  string `default:"radv"`
+	Rdir  string `default:"rdir"`
+	Rjoin string `default:"rjoin"`
+	Iface string `default:"iface"`
+}
+
+// FlagRmem defines InMem flag name.
+func FlagRmem(name string) FlagOptionFn { return func(f *FlagNames) { f.Rmem = name } }
+
+// FlagHaddr defines HTTPAddr flag name.
+func FlagHaddr(name string) FlagOptionFn { return func(f *FlagNames) { f.Haddr = name } }
+
+// FlagHadv defines HTTPAdv flag name.
+func FlagHadv(name string) FlagOptionFn { return func(f *FlagNames) { f.Hadv = name } }
+
+// FlagRaddr defines RaftAddr flag name.
+func FlagRaddr(name string) FlagOptionFn { return func(f *FlagNames) { f.Raddr = name } }
+
+// FlagRadv defines RaftAdv flag name.
+func FlagRadv(name string) FlagOptionFn { return func(f *FlagNames) { f.Radv = name } }
+
+// FlagRdir defines RaftNodeDir flag name.
+func FlagRdir(name string) FlagOptionFn { return func(f *FlagNames) { f.Rdir = name } }
+
+// FlagRjoin defines JoinAddrs flag name.
+func FlagRjoin(name string) FlagOptionFn { return func(f *FlagNames) { f.Rjoin = name } }
+
+// FlagIface defines IfaceName flag name.
+func FlagIface(name string) FlagOptionFn { return func(f *FlagNames) { f.Iface = name } }
+
 // DefineFlags define raft args
-func DefineFlags(p FlagProvider) *Arg {
+func DefineFlags(p FlagProvider, flagOptionFns ...FlagOptionFn) *Arg {
+	f := createFlagNames(flagOptionFns)
 	a := MakeArg()
 
-	p.BoolVar(&a.InMem, "rmem", true, "Use in-memory storage for Raft")
-	p.StringVar(&a.HTTPAddr, "haddr", "", "HTTP server bind address")
-	p.StringVar(&a.HTTPAdv, "hadv", "", "Advertised HTTP address. If not set, same as HTTP server")
-	p.StringVar(&a.RaftAddr, "raddr", "", "Raft communication bind address. If not set, same as haddr(port+1000)")
-	p.StringVar(&a.RaftAdv, "radv", "", "Advertised Raft communication address. If not set, same as Raft bind")
-	p.StringVar(&a.RaftNodeDir, "rdir", "", "Raft data directory, default to ~/.hraftd/{id}")
-	p.StringVar(&a.JoinAddrs, "rjoin", "", "Set raft cluster join addresses separated by comma, if any")
-	p.StringVar(&a.IfaceName, "iface", "", "iface name to bind")
+	p.BoolVar(&a.InMem, f.Rmem, true, "Use in-memory storage for Raft")
+	p.StringVar(&a.HTTPAddr, f.Haddr, "", "HTTP server bind address")
+	p.StringVar(&a.HTTPAdv, f.Hadv, "", "Advertised HTTP address. If not set, same as HTTP server")
+	p.StringVar(&a.RaftAddr, f.Raddr, "", "Raft communication bind address. If not set, same as haddr(port+1000)")
+	p.StringVar(&a.RaftAdv, f.Radv, "", "Advertised Raft communication address. If not set, same as Raft bind")
+	p.StringVar(&a.RaftNodeDir, f.Rdir, "", "Raft data directory, default to ~/.hraftd/{id}")
+	p.StringVar(&a.JoinAddrs, f.Rjoin, "", "Set raft cluster join addresses separated by comma, if any")
+	p.StringVar(&a.IfaceName, f.Iface, "", "iface name to bind")
 
 	return a
+}
+
+// CreateArg creates Arg by ViperProvider implementation.
+func CreateArg(p ViperProvider, flagOptionFns ...FlagOptionFn) *Arg {
+	f := createFlagNames(flagOptionFns)
+	a := MakeArg()
+
+	p.SetDefault(f.Rmem, true)
+
+	a.InMem = p.GetBool(f.Rmem)
+	a.HTTPAddr = p.GetString(f.Haddr)
+	a.HTTPAdv = p.GetString(f.Hadv)
+	a.RaftAddr = p.GetString(f.Raddr)
+	a.RaftAdv = p.GetString(f.Radv)
+	a.RaftNodeDir = p.GetString(f.Rdir)
+	a.JoinAddrs = p.GetString(f.Rjoin)
+	a.IfaceName = p.GetString(f.Iface)
+
+	return a
+}
+
+func createFlagNames(flagOptionFns []FlagOptionFn) *FlagNames {
+	f := &FlagNames{}
+
+	for _, fn := range flagOptionFns {
+		fn(f)
+	}
+
+	if err := defaults.Set(f); err != nil {
+		logrus.Warnf("failed to set defaults %v", err)
+	}
+
+	return f
 }
 
 // ViperProvider defines the args getter provider.
@@ -69,23 +145,6 @@ type ViperProvider interface {
 	SetDefault(key string, value interface{})
 	GetBool(key string) bool
 	GetString(key string) string
-}
-
-// CreateArg creates Arg by ViperProvider implementation.
-func CreateArg(p ViperProvider) *Arg {
-	a := MakeArg()
-
-	p.SetDefault("rmem", true)
-
-	a.InMem = p.GetBool("rmem")
-	a.HTTPAddr = p.GetString("haddr")
-	a.HTTPAdv = p.GetString("hadv")
-	a.RaftAddr = p.GetString("raddr")
-	a.RaftAdv = p.GetString("radv")
-	a.RaftNodeDir = p.GetString("rdir")
-	a.JoinAddrs = p.GetString("rjoin")
-
-	return a
 }
 
 // Fix fixes the arg for some defaults.
