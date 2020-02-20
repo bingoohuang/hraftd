@@ -42,13 +42,13 @@ func (s *Service) StartAll() error {
 func (s *Service) StartRaft() error {
 	go s.listenLeaderCh()
 
-	if err := s.Arg.Join(); err != nil {
-		s.Panic("failed to join at %s: %s", s.Arg.JoinAddrs, err.Error())
-	}
-
 	waitTimeout := 100 * time.Second // nolint gomnd
 	_, _ = s.store.WaitForLeader(waitTimeout)
 	_ = s.store.WaitForApplied(waitTimeout)
+
+	if err := s.Arg.Join(); err != nil {
+		s.Panic("failed to join at %s: %s", s.Arg.JoinAddrs, err.Error())
+	}
 
 	return nil
 }
