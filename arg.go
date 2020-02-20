@@ -187,7 +187,7 @@ func (a *Arg) fixAddr() {
 			a.Panicf("port %d is too large (<= 34565)", por)
 		}
 
-		host = If(a.isLocalHost(host), "", host)
+		host = If(a.isLocalHost(host), a.hostIP, host)
 
 		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
 		a.RaftAddr = fmt.Sprintf("%s:%d", host, por+1000) // nolint gomnd
@@ -206,7 +206,7 @@ func (a *Arg) fixAddr() {
 			a.Panicf("port %d is too large (>= 2024)", por)
 		}
 
-		host = If(a.isLocalHost(host), "", host)
+		host = If(a.isLocalHost(host), a.hostIP, host)
 		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por-1000) // nolint gomnd
 		a.RaftAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
 	}
