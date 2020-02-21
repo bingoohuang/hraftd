@@ -60,9 +60,9 @@ curl localhost:11000/hraftd/key/user1
 Let's bring up 3-node cluster. That way we can tolerate the failure of 1 node:
 
 ```bash
-hraftd -rjoin :11000 -haddr :11000
-hraftd -rjoin :11000 -haddr :11001
-hraftd -rjoin :11000 -haddr :11002
+hraftd --rjoin :11000 --haddr :11000
+hraftd --rjoin :11000 --haddr :11001
+hraftd --rjoin :11000 --haddr :11002
 ```
 
 or user supervisord
