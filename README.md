@@ -211,7 +211,7 @@ $ ps -ef|grep raft
 remove node from cluster:
 
 ```bash
-$ http -v DELETE :11001/raft/remove id=192.168.10.101:11004,192.168.10.101:12004
+$ http -v DELETE :11001/hraftd/raft/remove id=192.168.10.101:11004,192.168.10.101:12004
 DELETE /raft/remove HTTP/1.1
 Accept: application/json, */*
 Accept-Encoding: gzip, deflate
