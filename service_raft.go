@@ -64,7 +64,7 @@ func (s *Service) listenLeaderCh() {
 		default:
 		}
 
-		s.Printf("leader Changed to %v", leaderChanged)
+		s.Printf("leader changed to %v", leaderChanged)
 
 		if !leaderChanged {
 			continue

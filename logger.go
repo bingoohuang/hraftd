@@ -3,8 +3,13 @@ package hraftd
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
+	"path"
+	"runtime"
+	"sync"
+	"time"
+
+	"github.com/spf13/viper"
 )
 
 // LogLevel defines log levels.
@@ -54,45 +59,33 @@ const (
 
 // DefaultLogger is the default global logger
 // nolint
-var DefaultLogger = &SLogger{Writer: log.New(os.Stdout, "", log.LstdFlags), IOWriter: os.Stdout, Level: LogLevelInfo}
-
-// LoggerMore ...
-type LoggerMore interface {
-	Printf(format string, data ...interface{})
-	Debugf(format string, data ...interface{})
-	Infof(format string, data ...interface{})
-	Warnf(format string, data ...interface{})
-	Errorf(format string, data ...interface{})
-	Panicf(format string, data ...interface{})
-}
-
-// LoggerAdapter ...
-type LoggerAdapter struct {
-	Logger
-}
+var DefaultLogger = &SLogger{
+	Writer:   NewStdLogger(os.Stdout),
+	IOWriter: os.Stdout,
+	Level:    LogLevelInfo}
 
 // Debugf prints debug
-func (l LoggerAdapter) Debugf(format string, data ...interface{}) {
+func (l SLogger) Debugf(format string, data ...interface{}) {
 	l.Logf(LogLevelDebug, format, data...)
 }
 
 // Printf prints info
-func (l LoggerAdapter) Printf(format string, data ...interface{}) {
+func (l SLogger) Printf(format string, data ...interface{}) {
 	l.Logf(LogLevelInfo, format, data...)
 }
 
 // Infof prints info
-func (l LoggerAdapter) Infof(format string, data ...interface{}) {
+func (l SLogger) Infof(format string, data ...interface{}) {
 	l.Logf(LogLevelInfo, format, data...)
 }
 
 // Warnf prints warn messages
-func (l LoggerAdapter) Warnf(format string, data ...interface{}) {
+func (l SLogger) Warnf(format string, data ...interface{}) {
 	l.Logf(LogLevelWarn, format, data...)
 }
 
 // Errorf prints error messages
-func (l LoggerAdapter) Errorf(format string, data ...interface{}) {
+func (l SLogger) Errorf(format string, data ...interface{}) {
 	l.Logf(LogLevelError, format, data...)
 }
 
@@ -107,7 +100,19 @@ type Logger interface {
 	// Logf prints log
 	Logf(level LogLevel, format string, data ...interface{})
 
-	LoggerMore
+	// Printf prints info
+	Printf(format string, data ...interface{})
+
+	// Debugf prints debug
+	Debugf(format string, data ...interface{})
+	// Infof prints info
+	Infof(format string, data ...interface{})
+	// Warnf prints warn messages
+	Warnf(format string, data ...interface{})
+	// Errorf prints error messages
+	Errorf(format string, data ...interface{})
+	// Panicf prints error messages and panics
+	Panicf(format string, data ...interface{})
 }
 
 // Writer log writer interface
@@ -118,7 +123,6 @@ type Writer interface {
 // SLogger defines the simplest logger implementation of Interface
 type SLogger struct {
 	Writer
-	LoggerAdapter
 	IOWriter io.Writer
 	Level    LogLevel
 }
@@ -145,3 +149,132 @@ func (l SLogger) Panicf(format string, data ...interface{}) {
 
 	panic(fmt.Sprintf(format, data...))
 }
+
+// A StdLogger represents an active logging object that generates lines of
+// output to an io.Writer. Each logging operation makes a single call to
+// the Writer's Write method. A Logger can be used simultaneously from
+// multiple goroutines; it guarantees to serialize access to the Writer.
+type StdLogger struct {
+	mu              sync.Mutex // ensures atomic writes; protects the following fields
+	buf             []byte     // for accumulating text to write
+	Out             io.Writer  // destination for output
+	Calldepth       int
+	PrintCallerInfo bool
+}
+
+// NewStdLogger creates a new Logger. The out variable sets the
+// destination to which log data will be written.
+// The prefix appears at the beginning of each generated log line.
+// The flag argument defines the logging properties.
+func NewStdLogger(out io.Writer) *StdLogger {
+	// nolint gomnd
+	return &StdLogger{Out: out, Calldepth: 4, PrintCallerInfo: viper.GetBool("PrintCallerInfo")}
+}
+
+// Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
+// nolint gomnd
+func itoa(buf *[]byte, i int, wid int) {
+	// Assemble decimal in reverse order.
+	var b [20]byte
+	bp := len(b) - 1
+	for i >= 10 || wid > 1 {
+		wid--
+		q := i / 10
+		b[bp] = byte('0' + i - q*10)
+		bp--
+		i = q
+	}
+	// i < 10
+	b[bp] = byte('0' + i)
+	*buf = append(*buf, b[bp:]...)
+}
+
+// formatHeader writes log header to buf in following order:
+//   * l.prefix (if it's not blank),
+//   * date and/or time (if corresponding flags are provided),
+//   * file and line number (if corresponding flags are provided).
+// nolint gomnd
+func (l *StdLogger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+	year, month, day := t.Date()
+	itoa(buf, year, 4)
+	*buf = append(*buf, '-')
+	itoa(buf, int(month), 2)
+	*buf = append(*buf, '-')
+	itoa(buf, day, 2)
+	*buf = append(*buf, ' ')
+
+	hour, min, sec := t.Clock()
+	itoa(buf, hour, 2)
+	*buf = append(*buf, ':')
+	itoa(buf, min, 2)
+	*buf = append(*buf, ':')
+	itoa(buf, sec, 2)
+
+	*buf = append(*buf, '.')
+	itoa(buf, t.Nanosecond()/1e6, 3)
+
+	*buf = append(*buf, ' ')
+
+	if l.PrintCallerInfo {
+		short := file
+		for i := len(file) - 1; i > 0; i-- {
+			if file[i] == '/' {
+				short = file[i+1:]
+				break
+			}
+		}
+
+		file = short
+
+		*buf = append(*buf, file...)
+		*buf = append(*buf, ':')
+		itoa(buf, line, -1)
+		*buf = append(*buf, " "...)
+	}
+}
+
+// Output writes the output for a logging event. The string s contains
+// the text to print after the prefix specified by the flags of the
+// Logger. A newline is appended if the last character of s is not
+// already a newline. Calldepth is used to recover the PC and is
+// provided for generality, although at the moment on all pre-defined
+// paths it will be 2.
+func (l *StdLogger) Output(s string) error {
+	now := time.Now() // get this early.
+
+	file := ""
+	line := 0
+
+	if l.PrintCallerInfo {
+		ok := false
+
+		// getting caller info - it's expensive.
+		_, file, line, ok = runtime.Caller(l.Calldepth)
+		// funcName := "???" path.Base(runtime.FuncForPC(pc).Name())
+
+		if ok {
+			file = path.Base(file)
+		} else {
+			file = "???"
+		}
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.buf = l.buf[:0]
+	l.formatHeader(&l.buf, now, file, line)
+	l.buf = append(l.buf, s...)
+
+	if len(s) == 0 || s[len(s)-1] != '\n' {
+		l.buf = append(l.buf, '\n')
+	}
+
+	_, err := l.Out.Write(l.buf)
+
+	return err
+}
+
+// Print calls l.Output to print to the logger.
+// Arguments are handled in the manner of fmt.Print.
+func (l *StdLogger) Print(v ...interface{}) { _ = l.Output(fmt.Sprint(v...)) }

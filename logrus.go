@@ -9,13 +9,29 @@ import (
 // LogrusAdapter adapts the logrus to Logger.
 type LogrusAdapter struct {
 	Logrus *logrus.Logger
-	LoggerAdapter
 }
+
+// Printf prints info
+func (l *LogrusAdapter) Printf(format string, data ...interface{}) { l.Logrus.Printf(format, data...) }
+
+// Debugf prints debug
+func (l *LogrusAdapter) Debugf(format string, data ...interface{}) { l.Logrus.Debugf(format, data...) }
+
+// Infof prints info
+func (l *LogrusAdapter) Infof(format string, data ...interface{}) { l.Logrus.Infof(format, data...) }
+
+// Warnf prints warn messages
+func (l *LogrusAdapter) Warnf(format string, data ...interface{}) { l.Logrus.Warnf(format, data...) }
+
+// Errorf prints error messages
+func (l *LogrusAdapter) Errorf(format string, data ...interface{}) { l.Logrus.Errorf(format, data...) }
+
+// Panicf prints error messages and panics
+func (l *LogrusAdapter) Panicf(format string, data ...interface{}) { l.Logrus.Panicf(format, data...) }
 
 // NewLogrusAdapter news a LogrusAdapter
 func NewLogrusAdapter(logrus *logrus.Logger) *LogrusAdapter {
 	l := &LogrusAdapter{Logrus: logrus}
-	l.LoggerAdapter.Logger = l
 
 	return l
 }

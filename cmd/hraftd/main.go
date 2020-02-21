@@ -7,6 +7,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/spf13/pflag"
+
+	"github.com/spf13/viper"
+
 	"github.com/bingoohuang/faker"
 	"github.com/bingoohuang/gou/lo"
 	"github.com/bingoohuang/gou/ran"
@@ -22,12 +26,13 @@ func main() {
 
 	lo.DeclareLogPFlags()
 
-	flag.Parse()
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.Parse()
+	_ = viper.BindPFlags(pflag.CommandLine)
 
-	logrusLogger := logrus.New()
-	logrusLogger.SetOutput(lo.SetupLog())
-	arg.Logger = hraftd.NewLogrusAdapter(logrusLogger)
+	lo.SetupLog()
 
+	arg.Logger = hraftd.NewLogrusAdapter(logrus.StandardLogger())
 	arg.Fix()
 	arg.Printf("Args:%s", hraftd.Jsonify4Print(arg))
 
