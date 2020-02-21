@@ -718,9 +718,9 @@ func (s *RaftStore) lockApplyOp(fn func() interface{}) interface{} {
 }
 
 type hclogLogger struct {
-	Logger
-	args []interface{}
-	name string
+	Logger LoggerMore
+	args   []interface{}
+	name   string
 }
 
 func (h hclogLogger) Debug(msg string, args ...interface{}) { h.Logger.Debugf(msg, args...) }
@@ -736,10 +736,10 @@ func (h hclogLogger) Name() string                          { return h.name }
 func (h hclogLogger) Trace(msg string, args ...interface{}) {}
 
 func (h hclogLogger) IsTrace() bool { return false }
-func (h hclogLogger) IsDebug() bool { return h.GetLogLevel() <= LogLevelDebug }
-func (h hclogLogger) IsInfo() bool  { return h.GetLogLevel() <= LogLevelInfo }
-func (h hclogLogger) IsWarn() bool  { return h.GetLogLevel() <= LogLevelWarn }
-func (h hclogLogger) IsError() bool { return h.GetLogLevel() <= LogLevelError }
+func (h hclogLogger) IsDebug() bool { return h.Logger.GetLogLevel() <= LogLevelDebug }
+func (h hclogLogger) IsInfo() bool  { return h.Logger.GetLogLevel() <= LogLevelInfo }
+func (h hclogLogger) IsWarn() bool  { return h.Logger.GetLogLevel() <= LogLevelWarn }
+func (h hclogLogger) IsError() bool { return h.Logger.GetLogLevel() <= LogLevelError }
 
 func (h hclogLogger) With(args ...interface{}) hclog.Logger {
 	return &hclogLogger{Logger: h.Logger, args: args, name: h.name}
@@ -775,7 +775,7 @@ func (h *hclogLogger) convertLevel(level hclog.Level) LogLevel {
 	}
 }
 func (h *hclogLogger) SetLevel(level hclog.Level) {
-	h.SetLogLevel(h.convertLevel(level))
+	h.Logger.SetLogLevel(h.convertLevel(level))
 }
 
 func (h hclogLogger) StandardLogger(opts *hclog.StandardLoggerOptions) *log.Logger {

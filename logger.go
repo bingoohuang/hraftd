@@ -59,35 +59,7 @@ const (
 
 // DefaultLogger is the default global logger
 // nolint
-var DefaultLogger = &SLogger{
-	Writer:   NewStdLogger(os.Stdout),
-	IOWriter: os.Stdout,
-	Level:    LogLevelInfo}
-
-// Debugf prints debug
-func (l SLogger) Debugf(format string, data ...interface{}) {
-	l.Logf(LogLevelDebug, format, data...)
-}
-
-// Printf prints info
-func (l SLogger) Printf(format string, data ...interface{}) {
-	l.Logf(LogLevelInfo, format, data...)
-}
-
-// Infof prints info
-func (l SLogger) Infof(format string, data ...interface{}) {
-	l.Logf(LogLevelInfo, format, data...)
-}
-
-// Warnf prints warn messages
-func (l SLogger) Warnf(format string, data ...interface{}) {
-	l.Logf(LogLevelWarn, format, data...)
-}
-
-// Errorf prints error messages
-func (l SLogger) Errorf(format string, data ...interface{}) {
-	l.Logf(LogLevelError, format, data...)
-}
+var DefaultLogger = NewSLogger()
 
 // Logger defines logger interface
 type Logger interface {
@@ -99,10 +71,12 @@ type Logger interface {
 	GetIOWriter() io.Writer
 	// Logf prints log
 	Logf(level LogLevel, format string, data ...interface{})
+}
 
+// LevelLogger ...
+type LevelLogger interface {
 	// Printf prints info
 	Printf(format string, data ...interface{})
-
 	// Debugf prints debug
 	Debugf(format string, data ...interface{})
 	// Infof prints info
@@ -115,6 +89,46 @@ type Logger interface {
 	Panicf(format string, data ...interface{})
 }
 
+// LoggerMore ...
+type LoggerMore interface {
+	Logger
+	LevelLogger
+}
+
+// LevelLoggerAdapter adapters Logger to LevelLogger
+type LevelLoggerAdapter struct{ Logger }
+
+// Debugf prints debug
+func (l LevelLoggerAdapter) Debugf(format string, data ...interface{}) {
+	l.Logf(LogLevelDebug, format, data...)
+}
+
+// Printf prints info
+func (l LevelLoggerAdapter) Printf(format string, data ...interface{}) {
+	l.Logf(LogLevelInfo, format, data...)
+}
+
+// Infof prints info
+func (l LevelLoggerAdapter) Infof(format string, data ...interface{}) {
+	l.Logf(LogLevelInfo, format, data...)
+}
+
+// Warnf prints warn messages
+func (l LevelLoggerAdapter) Warnf(format string, data ...interface{}) {
+	l.Logf(LogLevelWarn, format, data...)
+}
+
+// Errorf prints error messages
+func (l LevelLoggerAdapter) Errorf(format string, data ...interface{}) {
+	l.Logf(LogLevelError, format, data...)
+}
+
+// Panicf prints error messages and panic
+func (l LevelLoggerAdapter) Panicf(format string, data ...interface{}) {
+	l.Logf(LogLevelError, format, data...)
+	panic(fmt.Sprintf(format, data...))
+}
+
 // Writer log writer interface
 type Writer interface {
 	Print(...interface{})
@@ -125,6 +139,20 @@ type SLogger struct {
 	Writer
 	IOWriter io.Writer
 	Level    LogLevel
+	LevelLogger
+}
+
+// NewSLogger creates a new SLogger
+func NewSLogger() *SLogger {
+	k := &SLogger{
+		Writer:   NewStdLogger(os.Stdout),
+		IOWriter: os.Stdout,
+		Level:    LogLevelInfo,
+	}
+
+	k.LevelLogger = &LevelLoggerAdapter{Logger: k}
+
+	return k
 }
 
 // GetIOWriter returns io.Writer
@@ -141,13 +169,6 @@ func (l SLogger) Logf(level LogLevel, format string, data ...interface{}) {
 	if l.Level <= level {
 		l.Print("[" + level.String() + "] " + fmt.Sprintf(format, data...))
 	}
-}
-
-// Panicf prints error messages and panics
-func (l SLogger) Panicf(format string, data ...interface{}) {
-	l.Logf(LogLevelError, format, data...)
-
-	panic(fmt.Sprintf(format, data...))
 }
 
 // A StdLogger represents an active logging object that generates lines of

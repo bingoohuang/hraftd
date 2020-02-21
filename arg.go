@@ -35,7 +35,7 @@ type Arg struct {
 
 	ApplyInterceptor ApplyInterceptor `json:"-"`
 	LogDealer        `json:"-"`
-	Logger           `json:"-"`
+	LoggerMore       `json:"-"`
 }
 
 // MakeArg makes a Arg
@@ -159,8 +159,8 @@ type ViperProvider interface {
 
 // Fix fixes the arg for some defaults.
 func (a *Arg) Fix() {
-	if a.Logger == nil {
-		a.Logger = DefaultLogger
+	if a.LoggerMore == nil {
+		a.LoggerMore = DefaultLogger
 	}
 
 	a.HostIP = InferHostIPv4(a.IfaceName)
@@ -372,7 +372,7 @@ func (a *Arg) ConvertToZeroHost(addr string) string {
 }
 
 // Join joins current node (raftAddr and nodeID) to joinAddr.
-func Join(logger Logger, joinAddr, raftAddr string, nodeID NodeID) error {
+func Join(logger LevelLogger, joinAddr, raftAddr string, nodeID NodeID) error {
 	joinURL := BindAddr(joinAddr).URLRaftJoin()
 	logger.Printf("joinURL %s", joinURL)
 
@@ -393,7 +393,7 @@ func Join(logger Logger, joinAddr, raftAddr string, nodeID NodeID) error {
 	return errors.New(r.Msg)
 }
 
-func checkJoined(logger Logger, nodeID NodeID) error {
+func checkJoined(logger LevelLogger, nodeID NodeID) error {
 	cluster, err := Cluster(logger, nodeID)
 	if err != nil {
 		return err
@@ -409,7 +409,7 @@ func checkJoined(logger Logger, nodeID NodeID) error {
 }
 
 // Cluster retrieves the RaftCluster
-func Cluster(logger Logger, nodeID NodeID) (v RaftCluster, err error) {
+func Cluster(logger LevelLogger, nodeID NodeID) (v RaftCluster, err error) {
 	clusterURL := nodeID.URLRaftCluster()
 	logger.Printf("GET Cluster %s", clusterURL)
 

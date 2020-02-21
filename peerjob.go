@@ -13,7 +13,7 @@ type JobRsp struct {
 }
 
 // DistributeJob distributes job to the peer node in the raft clusters.
-func (p Peer) DistributeJob(logger Logger, path string, req interface{}, rsp interface{}) error {
+func (p Peer) DistributeJob(logger LevelLogger, path string, req interface{}, rsp interface{}) error {
 	jobURL := p.ID.URL(DoJobPath + path)
 	logger.Printf("dispatch job %s to %s", Jsonify4Print(req), jobURL)
 

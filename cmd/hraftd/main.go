@@ -32,7 +32,7 @@ func main() {
 
 	lo.SetupLog()
 
-	arg.Logger = hraftd.NewLogrusAdapter(logrus.StandardLogger())
+	arg.LoggerMore = hraftd.NewLogrusAdapter(logrus.StandardLogger())
 	arg.Fix()
 	arg.Printf("Args:%s", hraftd.Jsonify4Print(arg))
 
@@ -75,7 +75,7 @@ type RigConfItem struct {
 	NodeID hraftd.NodeID `json:"node_id"`
 }
 
-func leaderChanging(logger hraftd.Logger, h *hraftd.Service) {
+func leaderChanging(logger hraftd.LevelLogger, h *hraftd.Service) {
 	tik := hraftd.NewTicker(10*time.Second, func() { // nolint gomnd
 		cluster, err := h.RaftCluster()
 		if err != nil {
@@ -94,14 +94,14 @@ func leaderChanging(logger hraftd.Logger, h *hraftd.Service) {
 	}
 }
 
-func tick(logger hraftd.Logger, h *hraftd.Service, c hraftd.RaftCluster) {
+func tick(logger hraftd.LevelLogger, h *hraftd.Service, c hraftd.RaftCluster) {
 	activePeers := c.ActivePeers()
 
 	demoApplyLogs(logger, activePeers, h)
 	demoDistributeJobs(logger, activePeers)
 }
 
-func demoDistributeJobs(logger hraftd.Logger, activePeers []hraftd.Peer) {
+func demoDistributeJobs(logger hraftd.LevelLogger, activePeers []hraftd.Peer) {
 	serverLen := len(activePeers)
 
 	// demo 10 jobs
@@ -130,7 +130,7 @@ func demoDistributeJobs(logger hraftd.Logger, activePeers []hraftd.Peer) {
 	}
 }
 
-func demoApplyLogs(logger hraftd.Logger, activePeers []hraftd.Peer, h *hraftd.Service) {
+func demoApplyLogs(logger hraftd.LevelLogger, activePeers []hraftd.Peer, h *hraftd.Service) {
 	items := make([]RigConfItem, 0)
 	// demo applying log
 	for _, peer := range activePeers {
