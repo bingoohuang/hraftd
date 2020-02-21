@@ -9,6 +9,6 @@ import (
 
 func TestHostIP(t *testing.T) {
 	hostIP := InferHostIPv4("")
-	fmt.Println("hostIP:", hostIP)
+	fmt.Println("HostIP:", hostIP)
 	assert.NotEmpty(t, hostIP)
 }

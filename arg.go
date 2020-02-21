@@ -31,7 +31,7 @@ type Arg struct {
 
 	JoinAddrSlice []string
 
-	hostIP string
+	HostIP string
 
 	ApplyInterceptor ApplyInterceptor `json:"-"`
 	LogDealer        `json:"-"`
@@ -163,7 +163,7 @@ func (a *Arg) Fix() {
 		a.Logger = DefaultLogger
 	}
 
-	a.hostIP = InferHostIPv4(a.IfaceName)
+	a.HostIP = InferHostIPv4(a.IfaceName)
 
 	a.fixAddr()
 	a.parseFlagRaftNodeID()
@@ -171,11 +171,12 @@ func (a *Arg) Fix() {
 	a.parseBootstrap()
 }
 
+// nolint gomnd
 func (a *Arg) fixAddr() {
 	switch {
 	case a.RaftAddr == "" && a.HTTPAddr == "":
-		a.RaftAddr = a.hostIP + ":12000"
-		a.HTTPAddr = a.hostIP + ":11000"
+		a.RaftAddr = a.HostIP + ":12000"
+		a.HTTPAddr = a.HostIP + ":11000"
 	case a.RaftAddr == "" && a.HTTPAddr != "":
 		host, port, err := net.SplitHostPort(a.HTTPAddr)
 		if err != nil {
@@ -187,10 +188,10 @@ func (a *Arg) fixAddr() {
 			a.Panicf("port %d is too large (<= 34565)", por)
 		}
 
-		host = If(a.isLocalHost(host), a.hostIP, host)
+		host = If(a.isLocalHost(host), a.HostIP, host)
 
-		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
-		a.RaftAddr = fmt.Sprintf("%s:%d", host, por+1000) // nolint gomnd
+		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por)
+		a.RaftAddr = fmt.Sprintf("%s:%d", host, por+1000)
 	case a.RaftAddr != "" && a.HTTPAddr == "":
 		host, port, err := net.SplitHostPort(a.RaftAddr)
 		if err != nil {
@@ -206,14 +207,28 @@ func (a *Arg) fixAddr() {
 			a.Panicf("port %d is too large (>= 2024)", por)
 		}
 
-		host = If(a.isLocalHost(host), a.hostIP, host)
-		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por-1000) // nolint gomnd
-		a.RaftAddr = fmt.Sprintf("%s:%d", host, por)      // nolint gomnd
+		host = If(a.isLocalHost(host), a.HostIP, host)
+		a.HTTPAddr = fmt.Sprintf("%s:%d", host, por-1000)
+		a.RaftAddr = fmt.Sprintf("%s:%d", host, por)
+	case a.RaftAddr != "" && a.HTTPAddr != "":
+		a.RaftAddr = a.fixAddrHost(a.RaftAddr)
+		a.HTTPAddr = a.fixAddrHost(a.HTTPAddr)
 	}
 }
 
+func (a *Arg) fixAddrHost(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		panic(err)
+	}
+
+	host = If(a.isLocalHost(host), a.HostIP, host)
+
+	return fmt.Sprintf("%s:%s", host, port)
+}
+
 func (a *Arg) isLocalHost(host string) bool {
-	return host == "" || host == "127.0.0.1" || host == "localhost" || host == a.hostIP
+	return host == "" || host == "127.0.0.1" || host == "localhost" || host == a.HostIP
 }
 
 // NodeID is the raft node ID
@@ -261,7 +276,7 @@ func (r *NodeID) Fix(host string) {
 
 func (a *Arg) parseFlagRaftNodeID() {
 	a.NodeID = NodeID(a.HTTPAddr + "," + a.RaftAddr)
-	a.NodeID.Fix(a.hostIP)
+	a.NodeID.Fix(a.HostIP)
 }
 
 // nolint gomnd
@@ -291,7 +306,7 @@ func (a *Arg) parseBootstrap() {
 			a.Panicf("fail to parse JoinAddrs %s error %v", a.JoinAddrs, err)
 		}
 
-		adr := fmt.Sprintf("%s:%s", EmptyThen(h, a.hostIP), p)
+		adr := fmt.Sprintf("%s:%s", EmptyThen(h, a.HostIP), p)
 		a.JoinAddrSlice = append(a.JoinAddrSlice, adr)
 	}
 
