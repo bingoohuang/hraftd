@@ -1,6 +1,7 @@
 package hraftd
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/sirupsen/logrus"
@@ -27,7 +28,10 @@ func (l *LogrusAdapter) Warnf(format string, data ...interface{}) { l.Logrus.War
 func (l *LogrusAdapter) Errorf(format string, data ...interface{}) { l.Logrus.Errorf(format, data...) }
 
 // Panicf prints error messages and panics
-func (l *LogrusAdapter) Panicf(format string, data ...interface{}) { l.Logrus.Panicf(format, data...) }
+func (l *LogrusAdapter) Panicf(format string, data ...interface{}) {
+	l.Logrus.Errorf(format, data...)
+	panic(fmt.Sprintf(format, data...))
+}
 
 // NewLogrusAdapter news a LogrusAdapter
 func NewLogrusAdapter(logrus *logrus.Logger) *LogrusAdapter {
