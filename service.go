@@ -65,7 +65,7 @@ func (s *Service) StartRaft() error {
 
 // GoStartHTTP starts the http server in go routine.
 func (s *Service) GoStartHTTP() (err error) {
-	if s.Ln, err = net.Listen("tcp", s.Arg.HTTPAddr); err != nil {
+	if s.Ln, err = net.Listen("tcp", s.Arg.ConvertToZeroHost(s.Arg.HTTPAddr)); err != nil {
 		return err
 	}
 

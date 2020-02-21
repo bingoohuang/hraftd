@@ -265,13 +265,15 @@ func (s *RaftStore) tryJoinLeader(c raft.Configuration) bool {
 
 // createTransport setup Raft communication.
 func (s *RaftStore) createTransport() (*raft.NetworkTransport, error) {
-	addr, err := net.ResolveTCPAddr("tcp", s.Arg.RaftAddr)
+	raftAddr := s.Arg.ConvertToZeroHost(s.Arg.RaftAddr)
+	addr, err := net.ResolveTCPAddr("tcp", raftAddr)
+
 	if err != nil {
 		return nil, err
 	}
 
 	// nolint gomnd
-	return raft.NewTCPTransport(s.Arg.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
+	return raft.NewTCPTransport(raftAddr, addr, 3, 10*time.Second, os.Stderr)
 }
 
 // createStores creates the log store and stable store.

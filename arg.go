@@ -346,6 +346,16 @@ func (a *Arg) Intercept(l *raft.Log, c Command) (interface{}, bool) {
 	return ret, true
 }
 
+// ConvertToZeroHost tries to bind localip:port to :port
+func (a *Arg) ConvertToZeroHost(addr string) string {
+	host, port, _ := net.SplitHostPort(addr)
+	if a.isLocalHost(host) {
+		return ":" + port
+	}
+
+	return addr
+}
+
 // Join joins current node (raftAddr and nodeID) to joinAddr.
 func Join(logger Logger, joinAddr, raftAddr string, nodeID NodeID) error {
 	joinURL := BindAddr(joinAddr).URLRaftJoin()
