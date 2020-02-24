@@ -176,11 +176,12 @@ func (l SLogger) Logf(level LogLevel, format string, data ...interface{}) {
 // the Writer's Write method. A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type StdLogger struct {
-	mu              sync.Mutex // ensures atomic writes; protects the following fields
-	buf             []byte     // for accumulating text to write
-	Out             io.Writer  // destination for output
-	Calldepth       int
-	PrintCallerInfo bool
+	mu  sync.Mutex // ensures atomic writes; protects the following fields
+	buf []byte     // for accumulating text to write
+	Out io.Writer  // destination for output
+
+	CallDepth       int  // used for print logger file and line number
+	PrintCallerInfo bool // switcher to print caller info
 }
 
 // NewStdLogger creates a new Logger. The out variable sets the
@@ -189,7 +190,7 @@ type StdLogger struct {
 // The flag argument defines the logging properties.
 func NewStdLogger(out io.Writer) *StdLogger {
 	// nolint gomnd
-	return &StdLogger{Out: out, Calldepth: 4, PrintCallerInfo: viper.GetBool("PrintCallerInfo")}
+	return &StdLogger{Out: out, CallDepth: 4, PrintCallerInfo: viper.GetBool("PrintCallerInfo")}
 }
 
 // Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
@@ -257,7 +258,7 @@ func (l *StdLogger) formatHeader(buf *[]byte, t time.Time, file string, line int
 // Output writes the output for a logging event. The string s contains
 // the text to print after the prefix specified by the flags of the
 // Logger. A newline is appended if the last character of s is not
-// already a newline. Calldepth is used to recover the PC and is
+// already a newline. CallDepth is used to recover the PC and is
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
 func (l *StdLogger) Output(s string) error {
@@ -270,7 +271,7 @@ func (l *StdLogger) Output(s string) error {
 		ok := false
 
 		// getting caller info - it's expensive.
-		_, file, line, ok = runtime.Caller(l.Calldepth)
+		_, file, line, ok = runtime.Caller(l.CallDepth)
 		// funcName := "???" path.Base(runtime.FuncForPC(pc).Name())
 
 		if ok {

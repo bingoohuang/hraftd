@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/bingoohuang/faker v0.0.0-20191122080657-247fa98a3272
 	github.com/bingoohuang/gonet v0.0.0-20200214022352-30b4d1d682e9
-	github.com/bingoohuang/gou v0.0.0-20200221042919-8432c95beb2b
+	github.com/bingoohuang/gou v0.0.0-20200224044911-7d4312e81ac6
 	github.com/creasty/defaults v1.3.0
 	github.com/hashicorp/go-hclog v0.12.0
 	github.com/hashicorp/raft v1.1.2
