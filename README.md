@@ -277,7 +277,7 @@ to replicate a SQLite database, check out [rqlite](https://github.com/rqlite/rql
 1. [使用 Raft 实现 VIP 功能](https://zdyxry.github.io/2020/01/17/%E4%BD%BF%E7%94%A8-Raft-%E5%AE%9E%E7%8E%B0-VIP-%E5%8A%9F%E8%83%BD/)
 1. [🚣 Raft implementation in Go](https://github.com/eliben/raft/)
 
-  * [Part 0: Introduction](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/)
-  * [Part 1: Elections](https://eli.thegreenplace.net/2020/implementing-raft-part-1-elections/)
-  * [Part 2: Commands and log replication](https://eli.thegreenplace.net/2020/implementing-raft-part-2-commands-and-log-replication/)
-  * [Part 3: Persistence and optimizations](https://eli.thegreenplace.net/2020/implementing-raft-part-3-persistence-and-optimizations/)
+    * [Part 0: Introduction](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/)
+    * [Part 1: Elections](https://eli.thegreenplace.net/2020/implementing-raft-part-1-elections/)
+    * [Part 2: Commands and log replication](https://eli.thegreenplace.net/2020/implementing-raft-part-2-commands-and-log-replication/)
+    * [Part 3: Persistence and optimizations](https://eli.thegreenplace.net/2020/implementing-raft-part-3-persistence-and-optimizations/)
