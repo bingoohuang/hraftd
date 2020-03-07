@@ -275,8 +275,7 @@ to replicate a SQLite database, check out [rqlite](https://github.com/rqlite/rql
 1. [raft 可视化](http://thesecretlivesofdata.com/raft/)
 1. [Leto - 基于 raft 快速实现一个 key-value 存储系统](https://xiking.win/2018/07/30/implement-key-value-store-using-raft/)
 1. [使用 Raft 实现 VIP 功能](https://zdyxry.github.io/2020/01/17/%E4%BD%BF%E7%94%A8-Raft-%E5%AE%9E%E7%8E%B0-VIP-%E5%8A%9F%E8%83%BD/)
-1. [🚣 Raft implementation in Go](https://github.com/eliben/raft/)
-
+1. [🚣 Raft implementation in Go](https://github.com/eliben/raft/), 信息入口在[twitter上](https://twitter.com/elibendersky/status/1235769480904667142)
     * [Part 0: Introduction](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/)
     * [Part 1: Elections](https://eli.thegreenplace.net/2020/implementing-raft-part-1-elections/)
     * [Part 2: Commands and log replication](https://eli.thegreenplace.net/2020/implementing-raft-part-2-commands-and-log-replication/)
