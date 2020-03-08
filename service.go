@@ -21,6 +21,9 @@ type Service struct {
 // Create returns an uninitialized service.
 func Create(arg *Arg) *Service {
 	s := New(arg)
+	if s.LoggerMore == nil {
+		s.LoggerMore = DefaultLogger
+	}
 
 	if err := s.Open(); err != nil {
 		s.Panicf("failed to open Store: %s", err.Error())
@@ -31,6 +34,10 @@ func Create(arg *Arg) *Service {
 
 // StartAll starts the http and raft service.
 func (s *Service) StartAll() error {
+	if s.LoggerMore == nil {
+		s.LoggerMore = DefaultLogger
+	}
+
 	if err := s.GoStartHTTP(); err != nil {
 		return err
 	}
