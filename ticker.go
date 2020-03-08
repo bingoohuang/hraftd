@@ -29,14 +29,11 @@ func NewTicker(d time.Duration, startInstantly bool, tickerFns ...func()) *Ticke
 }
 
 // StartAsync starts the ticker.
-func (j *Ticker) StartAsync() {
-	go j.start()
-}
-
-// StartAsyncFn starts the ticker with customized ticker functor.
-func (j *Ticker) StartAsyncFn(tickerFn func()) {
-	if tickerFn != nil {
-		j.tickerFn = append(j.tickerFn, tickerFn)
+func (j *Ticker) StartAsync(tickerFns ...func()) {
+	for _, fn := range tickerFns {
+		if fn != nil {
+			j.tickerFn = append(j.tickerFn, fn)
+		}
 	}
 
 	go j.start()
