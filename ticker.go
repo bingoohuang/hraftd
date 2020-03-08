@@ -29,10 +29,15 @@ func NewTicker(d time.Duration, startInstantly bool, tickerFns ...func()) *Ticke
 }
 
 // StartAsync starts the ticker.
+// if tickerFns are passed, they will overwrite the previous passed in NewTicker call.
 func (j *Ticker) StartAsync(tickerFns ...func()) {
-	for _, fn := range tickerFns {
-		if fn != nil {
-			j.tickerFn = append(j.tickerFn, fn)
+	if len(tickerFns) > 0 {
+		j.tickerFn = make([]func(), 0, len(tickerFns))
+
+		for _, fn := range tickerFns {
+			if fn != nil {
+				j.tickerFn = append(j.tickerFn, fn)
+			}
 		}
 	}
 
@@ -60,10 +65,7 @@ func (j *Ticker) start() {
 
 // StopAsync stops the ticker.
 func (j *Ticker) StopAsync() {
-	select {
-	case j.stop <- true:
-	default:
-	}
+	close(j.stop)
 }
 
 func (j *Ticker) execFns() {
