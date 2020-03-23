@@ -25,6 +25,9 @@ func Create(arg *Arg) *Service {
 	}
 
 	s := New(arg)
+	if s.LoggerMore == nil {
+		s.LoggerMore = DefaultLogger
+	}
 
 	if err := s.Open(); err != nil {
 		s.Panicf("failed to open Store: %s", err.Error())

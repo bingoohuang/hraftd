@@ -45,10 +45,16 @@ type RaftStore struct {
 
 // New returns a new Store.
 func New(arg *Arg) *RaftStore {
-	return &RaftStore{
+	r := &RaftStore{
 		m:   make(map[string]string),
 		Arg: arg,
 	}
+
+	if r.LoggerMore == nil {
+		r.LoggerMore = DefaultLogger
+	}
+
+	return r
 }
 
 // RaftStats returns raft stats.

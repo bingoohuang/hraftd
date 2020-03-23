@@ -76,14 +76,14 @@ type RigConfItem struct {
 }
 
 func leaderChanging(logger hraftd.LevelLogger, h *hraftd.Service) {
-	tik := hraftd.NewTicker(10*time.Second, func() { // nolint gomnd
+	tik := hraftd.NewTicker(10*time.Second, true, func() { // nolint gomnd
 		cluster, err := h.RaftCluster()
 		if err != nil {
 			logger.Printf("h.Store.Cluster error %v", err)
 		} else {
 			tick(logger, h, cluster)
 		}
-	}, true)
+	})
 
 	for leader := range h.LeaderCh {
 		if leader {
