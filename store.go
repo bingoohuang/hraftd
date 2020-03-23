@@ -181,6 +181,10 @@ func (s *RaftStore) getNodeState(nodeID NodeID) *Rsp {
 // then this node becomes the first node, and therefore leader, of the cluster.
 // localID should be the server identifier for this node.
 func (s *RaftStore) Open() error {
+	if s.LoggerMore == nil {
+		s.LoggerMore = DefaultLogger
+	}
+
 	// Setup Raft configuration.
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(s.Arg.NodeID)

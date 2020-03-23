@@ -20,6 +20,10 @@ type Service struct {
 
 // Create returns an uninitialized service.
 func Create(arg *Arg) *Service {
+	if arg.LoggerMore == nil {
+		arg.LoggerMore = DefaultLogger
+	}
+
 	s := New(arg)
 
 	if err := s.Open(); err != nil {
@@ -31,6 +35,10 @@ func Create(arg *Arg) *Service {
 
 // StartAll starts the http and raft service.
 func (s *Service) StartAll() error {
+	if s.LoggerMore == nil {
+		s.LoggerMore = DefaultLogger
+	}
+
 	if err := s.GoStartHTTP(); err != nil {
 		return err
 	}
@@ -168,4 +176,9 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error 
 	ReverseProxy(addr, r.URL.Path, 10*time.Second).ServeHTTP(w, r) // nolint gomnd
 
 	return nil
+}
+
+// IsLeader tells the current node is raft leader or not.
+func (s *Service) IsLeader() bool {
+	return s.store.IsLeader()
 }
