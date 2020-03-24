@@ -66,8 +66,7 @@ func (d *Distributor) Distribute(peers []Peer, data, emptyReceiver interface{}) 
 	// 再分配剩余
 	for _, item := range newItems {
 		for _, peer := range peers {
-			leftNum := peersNumMap[peer.ID]
-			if leftNum <= 0 {
+			if peersNumMap[peer.ID] <= 0 {
 				continue
 			}
 
