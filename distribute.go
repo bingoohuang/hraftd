@@ -2,10 +2,9 @@ package hraftd
 
 import "reflect"
 
-// DistributedItem is the data wrapper with NodeID.
-type DistributedItem struct {
-	Data   Identifier `json:"data"`
-	NodeID NodeID     `json:"nodeID"`
+// DistributedApplier is the data applier with NodeID.
+type DistributedApplier interface {
+	Distribute(NodeID NodeID, item Identifier)
 }
 
 // Identifier gives the ID getter.
@@ -28,24 +27,24 @@ func NewDistributor() *Distributor {
 	return d
 }
 
+// nolint gochecknoglobals
+var (
+	distributedApplierType = reflect.TypeOf((*DistributedApplier)(nil)).Elem()
+	identifierType         = reflect.TypeOf((*Identifier)(nil)).Elem()
+)
+
 // Distribute do the distribution.
-func (d *Distributor) Distribute(peers []Peer, data interface{}) []DistributedItem {
+func (d *Distributor) Distribute(peers []Peer, data, emptyReceiver interface{}) interface{} {
+	rt := checkReceiverType(emptyReceiver)
+	dv := d.checkDataType(data)
+
 	d.cleanKeysNotIn(peers)
-
-	dv := reflect.ValueOf(data)
-	if dv.Type().Kind() != reflect.Slice {
-		panic("data should be slice")
-	}
-
-	if !dv.Type().Elem().Implements(reflect.TypeOf((*Identifier)(nil)).Elem()) {
-		panic("data should implements Identifier")
-	}
 
 	dataLen := dv.Len()
 	// 预先计算每个节点可以安放的数量
 	peersNumMap := makePeersMap(peers, dataLen)
 	// 分配结果
-	distributed := make([]DistributedItem, 0, dataLen)
+	distributed := reflect.MakeSlice(reflect.SliceOf(rt), 0, dataLen)
 	// 需要新分配的项目
 	newItems := make([]Identifier, 0, dataLen)
 
@@ -53,7 +52,11 @@ func (d *Distributor) Distribute(peers []Peer, data interface{}) []DistributedIt
 	for i := 0; i < dataLen; i++ {
 		item := dv.Index(i).Interface().(Identifier)
 		if nodeID := d.stickyMap[item.ID()]; nodeID != "" {
-			distributed = append(distributed, DistributedItem{Data: item, NodeID: nodeID})
+			v := reflect.New(rt)
+			a := v.Interface().(DistributedApplier)
+			a.Distribute(nodeID, item)
+
+			distributed = reflect.Append(distributed, v.Elem())
 			peersNumMap[nodeID]--
 		} else {
 			newItems = append(newItems, item)
@@ -61,7 +64,6 @@ func (d *Distributor) Distribute(peers []Peer, data interface{}) []DistributedIt
 	}
 
 	// 再分配剩余
-NextItem:
 	for _, item := range newItems {
 		for _, peer := range peers {
 			leftNum := peersNumMap[peer.ID]
@@ -70,14 +72,50 @@ NextItem:
 			}
 
 			d.stickyMap[item.ID()] = peer.ID
-			distributed = append(distributed, DistributedItem{Data: item, NodeID: peer.ID})
+
+			v := reflect.New(rt)
+			a := v.Interface().(DistributedApplier)
+			a.Distribute(peer.ID, item)
+
+			distributed = reflect.Append(distributed, v.Elem())
 			peersNumMap[peer.ID]--
 
-			continue NextItem
+			break
 		}
 	}
 
-	return distributed
+	return distributed.Interface()
+}
+
+func (d *Distributor) checkDataType(data interface{}) reflect.Value {
+	dv := reflect.ValueOf(data)
+
+	if dv.Type().Kind() != reflect.Slice {
+		panic("data should be slice")
+	}
+
+	if !dv.Type().Elem().Implements(identifierType) {
+		panic("data should implements Identifier")
+	}
+
+	return dv
+}
+
+func checkReceiverType(emptyReceiver interface{}) reflect.Type {
+	rt := reflect.TypeOf(emptyReceiver)
+	rtPtr := rt
+
+	if rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+	} else {
+		rtPtr = reflect.PtrTo(rt)
+	}
+
+	if !rtPtr.Implements(distributedApplierType) {
+		panic("receiver type should implement *DistributedApplier")
+	}
+
+	return rt
 }
 
 func makePeersMap(peers []Peer, dataLen int) map[NodeID]int {
