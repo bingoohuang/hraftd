@@ -70,7 +70,7 @@ func (d *Distributor) Distribute(peers []Peer, data, emptyReceiver interface{}) 
 				continue
 			}
 
-			d.stickyMap[item.ID()] = peer.ID
+			d.Put(item.ID(), peer.ID)
 
 			v := reflect.New(rt)
 			a := v.Interface().(DistributedApplier)
@@ -84,6 +84,11 @@ func (d *Distributor) Distribute(peers []Peer, data, emptyReceiver interface{}) 
 	}
 
 	return distributed.Interface()
+}
+
+// Put puts the node ID related to id directly.
+func (d *Distributor) Put(id string, nodeID NodeID) {
+	d.stickyMap[id] = nodeID
 }
 
 func (d *Distributor) checkDataType(data interface{}) reflect.Value {
