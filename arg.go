@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/creasty/defaults"
 	"github.com/hashicorp/raft"
 )
@@ -228,7 +230,34 @@ func (a *Arg) fixAddrHost(addr string) string {
 }
 
 func (a *Arg) isLocalHost(host string) bool {
-	return host == "" || host == "127.0.0.1" || host == "localhost" || host == a.HostIP
+	for _, oneip := range ParseIps(host) {
+		switch oneip {
+		case "", "127.0.0.1", "localhost", a.HostIP:
+			return true
+		}
+	}
+
+	return false
+}
+
+// ParseIps parses IP addresses from the host string which maybe an IP or domain name.
+func ParseIps(host string) []string {
+	if net.ParseIP(host) != nil {
+		return []string{host}
+	}
+
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		logrus.Warnf("failed to resolve %s: %v", host, err)
+		return []string{host}
+	}
+
+	hostIps := make([]string, 0)
+	for _, ip := range ips {
+		hostIps = append(hostIps, ip.String())
+	}
+
+	return hostIps
 }
 
 // NodeID is the raft node ID
