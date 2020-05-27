@@ -269,6 +269,7 @@ to replicate a SQLite database, check out [rqlite](https://github.com/rqlite/rql
 
 ## Resources
 
+1. [Raft 论文 - 中文译版](https://mp.weixin.qq.com/s?__biz=MzIzODYwNDI0NA==&mid=2247483691&idx=1&sn=2362f5f2eb53565351f81ae9527a49f9)
 1. [The Raft Consensus Algorithm，包括可视化，包括节点状态](https://raft.github.io/)
 1. [Raft算法原理](https://www.codedump.info/post/20180921-raft/)
 1. [基于 hashicorp/raft 的分布式一致性实战教学](https://zhuanlan.zhihu.com/p/58048906)
