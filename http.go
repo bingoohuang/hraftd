@@ -8,7 +8,7 @@ import (
 
 // GetJSON does HTTP GET parse response as JSON
 func GetJSON(addr string, v interface{}) (string, error) {
-	resp, err := http.Get(addr) // nolint gosec
+	resp, err := http.Get(addr) // nolint:gosec
 	if err != nil {
 		return "", err
 	}
@@ -18,7 +18,7 @@ func GetJSON(addr string, v interface{}) (string, error) {
 
 // PostJSON posts body as JSON and parse response as JSON
 func PostJSON(addr string, body, v interface{}) (int, string, error) {
-	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(JsonifyBytes(body))) // nolint gosec
+	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(JsonifyBytes(body))) // nolint:gosec
 	if err != nil {
 		return 0, "", err
 	}

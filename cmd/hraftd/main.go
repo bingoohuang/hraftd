@@ -68,7 +68,7 @@ func main() {
 	arg.Printf("hraftd exiting")
 }
 
-// RigConfItem defines 配置项
+// RigConfItem defines 配置项.
 type RigConfItem struct {
 	ID     int64         `json:"id"`
 	Name   string        `json:"name"`
@@ -76,7 +76,7 @@ type RigConfItem struct {
 }
 
 func leaderChanging(logger hraftd.LevelLogger, h *hraftd.Service) {
-	tik := hraftd.NewTicker(10*time.Second, true, func() { // nolint gomnd
+	tik := hraftd.NewTicker(10*time.Second, true, func() { // nolint:gomnd
 		cluster, err := h.RaftCluster()
 		if err != nil {
 			logger.Printf("h.Store.Cluster error %v", err)
@@ -134,7 +134,7 @@ func demoApplyLogs(logger hraftd.LevelLogger, activePeers []hraftd.Peer, h *hraf
 	items := make([]RigConfItem, 0)
 	// demo applying log
 	for _, peer := range activePeers {
-		for i := 1 + ran.IntN(3); i > 0; i-- { // nolint gomnd
+		for i := 1 + ran.IntN(3); i > 0; i-- { // nolint:gomnd
 			item := RigConfItem{}
 			_ = faker.Fake(&item)
 			item.NodeID = peer.ID

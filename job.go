@@ -14,7 +14,6 @@ func (s *DealerMap) handleJobRequest(w http.ResponseWriter, r *http.Request) err
 	path := strings.TrimPrefix(r.URL.String(), DoJobPath)
 	body := gonet.ReadBytes(r.Body)
 	rsp, err := s.Invoke(path, body)
-
 	if err != nil {
 		return err
 	}
@@ -40,10 +39,12 @@ type Dealer struct {
 	ReqType reflect.Type
 }
 
-// ErrDealerNoExists is the error for the dealer not exists.
-var ErrDealerNoExists = errors.New("dealer does not exist") // nolint
-// ErrDealerContinue is the error for the dealer bypass and should continue
-var ErrDealerContinue = errors.New("dealer bypass and should continue") // nolint
+var (
+	// ErrDealerNoExists is the error for the dealer not exists.
+	ErrDealerNoExists = errors.New("dealer does not exist")
+	// ErrDealerContinue is the error for the dealer bypass and should continue
+	ErrDealerContinue = errors.New("dealer bypass and should continue")
+)
 
 // Invoke invokes the registered dealer function
 func (s *DealerMap) Invoke(dealerName string, requestBody []byte) (x interface{}, err error) {
@@ -111,7 +112,7 @@ func checkDealerFn(f interface{}) (reflect.Value, error) {
 
 	errorInterface := reflect.TypeOf((*error)(nil)).Elem()
 
-	if fnType.Out(1) != errorInterface { // nolint gomnd
+	if fnType.Out(1) != errorInterface {
 		return fn, errors.New("function must return like（x, error)")
 	}
 

@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/raft"
 )
 
-// Arg Command line parameters
+// Arg Command line parameters.
 type Arg struct {
 	Bootstrap bool
 
@@ -40,7 +40,7 @@ type Arg struct {
 	LoggerMore       `json:"-"`
 }
 
-// MakeArg makes a Arg
+// MakeArg makes a Arg.
 func MakeArg() *Arg {
 	return &Arg{LogDealer: MakeLogDealer()}
 }
@@ -90,7 +90,7 @@ func FlagRjoin(name string) FlagOptionFn { return func(f *FlagNames) { f.Rjoin =
 // FlagIface defines IfaceName flag name. If empty, disable the flag.
 func FlagIface(name string) FlagOptionFn { return func(f *FlagNames) { f.Iface = name } }
 
-// DefineFlags define raft args
+// DefineFlags define raft args.
 func DefineFlags(p FlagProvider, flagOptionFns ...FlagOptionFn) *Arg {
 	f := createFlagNames(flagOptionFns)
 	a := MakeArg()
@@ -173,7 +173,7 @@ func (a *Arg) Fix() {
 	a.parseBootstrap()
 }
 
-// nolint gomnd
+// nolint:gomnd
 func (a *Arg) fixAddr() {
 	switch {
 	case a.RaftAddr == "" && a.HTTPAddr == "":
@@ -260,13 +260,13 @@ func ParseIps(host string) []string {
 	return hostIps
 }
 
-// NodeID is the raft node ID
+// NodeID is the raft node ID.
 type NodeID string
 
-// BindAddr is the address for bind
+// BindAddr is the address for bind.
 type BindAddr string
 
-// URL returns the HTTP access URL with relative path
+// URL returns the HTTP access URL with relative path.
 func (a BindAddr) URL(path string) string {
 	host, port, _ := net.SplitHostPort(string(a))
 	path = strings.TrimPrefix(path, "/")
@@ -274,28 +274,28 @@ func (a BindAddr) URL(path string) string {
 	return fmt.Sprintf("http://%s:%s/%s", host, port, path)
 }
 
-// URL returns the HTTP access URL with relative path
+// URL returns the HTTP access URL with relative path.
 func (r NodeID) URL(relativePath string) string { return BindAddr(r.HTTPAddr()).URL(relativePath) }
 
-// URLRaftCluster is http://httpAddr/raft/cluster
+// URLRaftCluster is http://httpAddr/raft/cluster.
 func (r NodeID) URLRaftCluster() string { return r.URL(RaftPath + "/cluster") }
 
-// URLRaftState is http://httpAddr/raft/state
+// URLRaftState is http://httpAddr/raft/state.
 func (r NodeID) URLRaftState() string { return r.URL(RaftPath + "/state") }
 
-// URLRaftJoin is http://httpAddr/raft/join
+// URLRaftJoin is http://httpAddr/raft/join.
 func (r NodeID) URLRaftJoin() string { return r.URL(RaftPath + "/join") }
 
 // URLRaftJoin is http://httpAddr/raft/join
 func (a BindAddr) URLRaftJoin() string { return a.URL(RaftPath + "/join") }
 
-// HTTPAddr returns the HTTP bind address in the ID
+// HTTPAddr returns the HTTP bind address in the ID.
 func (r NodeID) HTTPAddr() string { return strings.SplitN(string(r), ",", -1)[0] }
 
-// RaftAddr returns the Raft bind addr in the ID
+// RaftAddr returns the Raft bind addr in the ID.
 func (r NodeID) RaftAddr() string { return strings.SplitN(string(r), ",", -1)[1] }
 
-// Fix fixes the ID component to full host:port
+// Fix fixes the ID component to full host:port.
 func (r *NodeID) Fix(host string) {
 	_, hPort, _ := net.SplitHostPort(r.HTTPAddr())
 	_, rPort, _ := net.SplitHostPort(r.RaftAddr())
@@ -308,7 +308,7 @@ func (a *Arg) parseFlagRaftNodeID() {
 	a.NodeID.Fix(a.HostIP)
 }
 
-// nolint gomnd
+// nolint:gomnd
 func (a *Arg) parseFlagRaftDir() {
 	if a.RaftNodeDir != "" {
 		return
@@ -355,7 +355,7 @@ func (a *Arg) parseBootstrap() {
 	a.Bootstrap = a.isLocalHost(jHost)
 }
 
-// Join joins the current not to raft cluster
+// Join joins the current not to raft cluster.
 func (a *Arg) Join() error {
 	if a.Bootstrap {
 		return nil
@@ -390,7 +390,7 @@ func (a *Arg) Intercept(l *raft.Log, c Command) (interface{}, bool) {
 	return ret, true
 }
 
-// ConvertToZeroHost tries to bind localip:port to :port
+// ConvertToZeroHost tries to bind localip:port to :port.
 func (a *Arg) ConvertToZeroHost(addr string) string {
 	host, port, _ := net.SplitHostPort(addr)
 	if a.isLocalHost(host) {
@@ -437,7 +437,7 @@ func checkJoined(logger LevelLogger, nodeID NodeID) error {
 	return fmt.Errorf("checked failed for joined node %s", nodeID)
 }
 
-// Cluster retrieves the RaftCluster
+// Cluster retrieves the RaftCluster.
 func Cluster(logger LevelLogger, nodeID NodeID) (v RaftCluster, err error) {
 	clusterURL := nodeID.URLRaftCluster()
 	logger.Printf("GET Cluster %s", clusterURL)

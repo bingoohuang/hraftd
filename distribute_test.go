@@ -24,7 +24,7 @@ func (d *dataItemWrap) Distribute(nodeID NodeID, item Identifier) {
 	d.dataItem = item.(dataItem)
 }
 
-// nolint funlen
+// nolint:funlen
 func TestDistribute(t *testing.T) {
 	d := NewDistributor()
 	peers := []Peer{{ID: "1"}, {ID: "2"}, {ID: "3"}}

@@ -7,8 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type InputStruct struct{ Name string }
-type OutputStruct struct{ Name string }
+type (
+	InputStruct  struct{ Name string }
+	OutputStruct struct{ Name string }
+)
 
 func TestDealer_Invoke(t *testing.T) {
 	dm := MakeDealerMap()

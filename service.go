@@ -63,11 +63,11 @@ func (s *Service) StartRaft() error {
 			}
 
 			s.Errorf("failed to join at %s error %s, retry after 10s", s.Arg.JoinAddrs, err.Error())
-			time.Sleep(10 * time.Second) // nolint gomnd
+			time.Sleep(10 * time.Second) // nolint:gomnd
 		}
 	}()
 
-	waitTimeout := 100 * time.Second // nolint gomnd
+	waitTimeout := 100 * time.Second // nolint:gomnd
 	_, _ = s.store.WaitForLeader(waitTimeout)
 	_ = s.store.WaitForApplied(waitTimeout)
 
@@ -176,7 +176,7 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error 
 		return errors.New("forward two times not allowed")
 	}
 
-	ReverseProxy(addr, r.URL.Path, 10*time.Second).ServeHTTP(w, r) // nolint gomnd
+	ReverseProxy(addr, r.URL.Path, 10*time.Second).ServeHTTP(w, r) // nolint:gomnd
 
 	return nil
 }

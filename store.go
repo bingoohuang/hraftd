@@ -276,12 +276,11 @@ func (s *RaftStore) tryJoinLeader(c raft.Configuration) bool {
 // createTransport setup Raft communication.
 func (s *RaftStore) createTransport() (*raft.NetworkTransport, error) {
 	addr, err := net.ResolveTCPAddr("tcp", s.Arg.RaftAddr)
-
 	if err != nil {
 		return nil, err
 	}
 
-	// nolint gomnd
+	// nolint:gomnd
 	return raft.NewTCPTransport(s.Arg.RaftAddr, addr, 3, 10*time.Second, os.Stderr)
 }
 
@@ -480,7 +479,8 @@ func ReadPeersJSON(path string) (raft.Configuration, error) {
 	for _, peer := range peers {
 		c.Servers = append(c.Servers, raft.Server{
 			Suffrage: ParseSuffrage(peer.Suffrage),
-			ID:       peer.ID, Address: peer.Address},
+			ID:       peer.ID, Address: peer.Address,
+		},
 		)
 	}
 
@@ -503,7 +503,7 @@ func ParseSuffrage(s string) raft.ServerSuffrage {
 
 // WaitForLeader blocks until a leader is detected, or the timeout expires.
 func (s *RaftStore) WaitForLeader(timeout time.Duration) (string, error) {
-	tck := time.NewTicker(3 * time.Second) // nolint gomnd
+	tck := time.NewTicker(3 * time.Second) // nolint:gomnd
 	tmr := time.NewTimer(timeout)
 
 	defer tck.Stop()
@@ -622,8 +622,8 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	switch c.Op {
 	case "set":
 		t, err := ParseTime(c.Time)
-		if err != nil || t.Before(time.Now().Add(-100*time.Second)) { // nolint gomnd
-			s.Infof("too old command  %+v, ignored", c)
+		if err != nil || t.Before(time.Now().Add(-100*time.Second)) { // nolint:gomnd
+			s.Debugf("too old command  %+v, ignored", c)
 			return nil
 		}
 
@@ -637,7 +637,7 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	case "delete":
 		return s.lockApplyOp(func() interface{} { delete(s.m, c.Key); return nil })
 	default:
-		s.Infof("unrecognized Command op: %+v", c)
+		s.Debugf("unrecognized Command op: %+v", c)
 	}
 
 	return nil
@@ -693,7 +693,6 @@ func (f *fsmSnapshot) Persist(sink raft.SnapshotSink) error {
 
 		return sink.Close()
 	}()
-
 	if err != nil {
 		_ = sink.Cancel()
 	}
@@ -784,6 +783,7 @@ func (h *hclogLogger) convertLevel(level hclog.Level) LogLevel {
 		return LogLevelInfo
 	}
 }
+
 func (h *hclogLogger) SetLevel(level hclog.Level) {
 	h.Logger.SetLogLevel(h.convertLevel(level))
 }

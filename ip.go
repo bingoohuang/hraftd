@@ -25,10 +25,12 @@ func IsLocalAddr(addr string) bool {
 	return yes
 }
 
-const localhostIPv4 = "127.0.0.1"
-const localhostIPv6 = "::1"
+const (
+	localhostIPv4 = "127.0.0.1"
+	localhostIPv6 = "::1"
+)
 
-// ReplaceAddr2Local try to replace an local IP to localhost
+// ReplaceAddr2Local try to replace an local IP to localhost.
 func ReplaceAddr2Local(ip string) (replaced, original string) {
 	if IsLocalAddr(ip) {
 		if gonet.IsIPv6(ip) {
@@ -93,7 +95,7 @@ func InferHostIPv4(ifaceName string) string {
 		ipList, _ = HostIPv4(IfaceNameMatchPrefix)
 	}
 
-	if len(ipList) == 1 { // nolint gomnd
+	if len(ipList) == 1 {
 		return ipList[0]
 	}
 

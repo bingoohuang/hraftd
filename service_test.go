@@ -83,7 +83,6 @@ func (t *testStore) NodeState() string                             { return "" }
 
 func doGet(t *testing.T, url, key string) string {
 	resp, err := http.Get(url + KeyPath + "/" + key)
-
 	if err != nil {
 		t.Fatalf("failed to GET key: %s", err)
 	}
@@ -99,7 +98,6 @@ func doGet(t *testing.T, url, key string) string {
 
 func doPost(t *testing.T, url, key, value string) {
 	resp, err := http.Post(url+KeyPath, ContentTypeJSON, bytes.NewReader(JsonifyBytes(map[string]string{key: value})))
-
 	if err != nil {
 		t.Fatalf("POST request failed: %s", err)
 	}

@@ -189,16 +189,17 @@ type StdLogger struct {
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
 func NewStdLogger(out io.Writer) *StdLogger {
-	// nolint gomnd
+	// nolint:gomnd
 	return &StdLogger{Out: out, CallDepth: 4, PrintCallerInfo: viper.GetBool("PrintCallerInfo")}
 }
 
 // Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
-// nolint gomnd
+// nolint:gomnd
 func itoa(buf *[]byte, i int, wid int) {
 	// Assemble decimal in reverse order.
 	var b [20]byte
 	bp := len(b) - 1
+
 	for i >= 10 || wid > 1 {
 		wid--
 		q := i / 10
@@ -215,7 +216,7 @@ func itoa(buf *[]byte, i int, wid int) {
 //   * l.prefix (if it's not blank),
 //   * date and/or time (if corresponding flags are provided),
 //   * file and line number (if corresponding flags are provided).
-// nolint gomnd
+// nolint:gomnd
 func (l *StdLogger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 	year, month, day := t.Date()
 	itoa(buf, year, 4)
@@ -239,6 +240,7 @@ func (l *StdLogger) formatHeader(buf *[]byte, t time.Time, file string, line int
 
 	if l.PrintCallerInfo {
 		short := file
+
 		for i := len(file) - 1; i > 0; i-- {
 			if file[i] == '/' {
 				short = file[i+1:]

@@ -27,7 +27,7 @@ func NewDistributor() *Distributor {
 	return d
 }
 
-// nolint gochecknoglobals
+// nolint:gochecknoglobals
 var (
 	distributedApplierType = reflect.TypeOf((*DistributedApplier)(nil)).Elem()
 	identifierType         = reflect.TypeOf((*Identifier)(nil)).Elem()
