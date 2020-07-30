@@ -2,13 +2,14 @@ package hraftd
 
 import (
 	"bytes"
-	"encoding/json"
 	"net/http"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
-// GetJSON does HTTP GET parse response as JSON
+// GetJSON does HTTP GET parse response as JSON.
 func GetJSON(addr string, v interface{}) (string, error) {
-	resp, err := http.Get(addr) // nolint:gosec
+	resp, err := http.Get(addr) // nolint:gosec,noctx
 	if err != nil {
 		return "", err
 	}
@@ -16,9 +17,9 @@ func GetJSON(addr string, v interface{}) (string, error) {
 	return parseRSP(resp, v)
 }
 
-// PostJSON posts body as JSON and parse response as JSON
+// PostJSON posts body as JSON and parse response as JSON.
 func PostJSON(addr string, body, v interface{}) (int, string, error) {
-	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(JsonifyBytes(body))) // nolint:gosec
+	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(JsonifyBytes(body))) // nolint:gosec,noctx
 	if err != nil {
 		return 0, "", err
 	}
@@ -36,7 +37,7 @@ func parseRSP(resp *http.Response, v interface{}) (string, error) {
 		return rs, nil
 	}
 
-	return rs, json.Unmarshal([]byte(rs), v)
+	return rs, jsoniter.Unmarshal([]byte(rs), v)
 }
 
 // ContentTypeJSON is the JSON Content-Type.

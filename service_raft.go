@@ -1,9 +1,10 @@
 package hraftd
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
@@ -18,11 +19,11 @@ func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
 		CheckMethodE("DELETE", s.tryForwardToLeaderFn(s.handleRemove), w, r)
 	case "/stats":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
-			WriteAsJSON(s.store.RaftStats(), w)
+			WriteAsJSON(s.Store.RaftStats(), w)
 		}, w, r)
 	case "/state":
 		CheckMethod("GET", func(w http.ResponseWriter, _ *http.Request) {
-			WriteAsJSON(Rsp{OK: true, Msg: s.store.NodeState()}, w)
+			WriteAsJSON(Rsp{OK: true, Msg: s.Store.NodeState()}, w)
 		}, w, r)
 	case "/cluster":
 		CheckMethodE("GET", s.handleCluster, w, r)
@@ -33,7 +34,7 @@ func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) error {
 	var m JoinRequest
-	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+	if err := jsoniter.NewDecoder(r.Body).Decode(&m); err != nil {
 		return err
 	}
 
@@ -41,7 +42,7 @@ func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) error {
 
 	s.Printf("received join request for remote node %s at %s", m.NodeID, m.Addr)
 
-	if err := s.store.Join(string(m.NodeID), m.Addr); err != nil {
+	if err := s.Store.Join(string(m.NodeID), m.Addr); err != nil {
 		return err
 	}
 
@@ -54,11 +55,11 @@ func (s *Service) handleJoin(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// RaftCluster returns raft cluster
-func (s *Service) RaftCluster() (RaftCluster, error) { return s.store.Cluster() }
+// RaftCluster returns raft cluster.
+func (s *Service) RaftCluster() (RaftCluster, error) { return s.Store.Cluster() }
 
 func (s *Service) listenLeaderCh() {
-	for leaderChanged := range s.store.LeaderCh() {
+	for leaderChanged := range s.Store.LeaderCh() {
 		select {
 		case s.LeaderCh <- leaderChanged:
 		default:
@@ -73,7 +74,7 @@ func (s *Service) listenLeaderCh() {
 }
 
 func (s *Service) handleCluster(w http.ResponseWriter, _ *http.Request) error {
-	servers, err := s.store.Cluster()
+	servers, err := s.Store.Cluster()
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func (s *Service) handleCluster(w http.ResponseWriter, _ *http.Request) error {
 }
 
 func (s *Service) saveCluster() {
-	cluster, err := s.store.Cluster()
+	cluster, err := s.Store.Cluster()
 	if err != nil {
 		s.Printf("s.store.Cluster failed %v", err)
 		return
@@ -93,7 +94,7 @@ func (s *Service) saveCluster() {
 	cv := Jsonify(cluster)
 	s.Printf("try s.store.Set /raft/cluster to %v", cv)
 
-	if err := s.store.Set("raft/cluster", cv); err != nil {
+	if err := s.Store.Set("raft/cluster", cv); err != nil {
 		s.Printf("s.store.Set raft/cluster failed %v", err)
 	} else {
 		s.Printf("s.store.Set raft/cluster successfully")

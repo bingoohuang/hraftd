@@ -10,7 +10,7 @@ import (
 
 // Service provides HTTP service.
 type Service struct {
-	store Store
+	Store Store
 	Ln    net.Listener
 	*Arg
 
@@ -33,7 +33,7 @@ func Create(arg *Arg) *Service {
 		s.Panicf("failed to open Store: %s", err.Error())
 	}
 
-	return &Service{Arg: arg, store: s, DealerMap: MakeDealerMap(), LeaderCh: make(chan bool, 1)}
+	return &Service{Arg: arg, Store: s, DealerMap: MakeDealerMap(), LeaderCh: make(chan bool, 1)}
 }
 
 // StartAll starts the http and raft service.
@@ -68,8 +68,8 @@ func (s *Service) StartRaft() error {
 	}()
 
 	waitTimeout := 100 * time.Second // nolint:gomnd
-	_, _ = s.store.WaitForLeader(waitTimeout)
-	_ = s.store.WaitForApplied(waitTimeout)
+	_, _ = s.Store.WaitForLeader(waitTimeout)
+	_ = s.Store.WaitForApplied(waitTimeout)
 
 	return nil
 }
@@ -95,7 +95,7 @@ func (s *Service) GoStartHTTP() (err error) {
 // Close closes the service.
 func (s *Service) Close() error { return s.Ln.Close() }
 
-// Addr returns the address on which the Service is listening
+// Addr returns the address on which the Service is listening.
 func (s *Service) Addr() net.Addr { return s.Ln.Addr() }
 
 // ServeHTTP allows Service to serve HTTP requests.
@@ -144,7 +144,7 @@ func CheckMethodE(m string, f ServeHTTPFnE, w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Service) tryForwardToLeaderFn(f ServeHTTPFnE) ServeHTTPFnE {
-	if s.store.IsLeader() {
+	if s.Store.IsLeader() {
 		return f
 	}
 
@@ -152,7 +152,7 @@ func (s *Service) tryForwardToLeaderFn(f ServeHTTPFnE) ServeHTTPFnE {
 }
 
 func (s *Service) tryForwardToLeader(f ServeHTTPFn, w http.ResponseWriter, r *http.Request) {
-	if s.store.IsLeader() {
+	if s.Store.IsLeader() {
 		f(w, r)
 	} else if err := s.forwardToLeader(w, r); err != nil {
 		WriteAsJSON(Rsp{Msg: err.Error()}, w)
@@ -160,20 +160,20 @@ func (s *Service) tryForwardToLeader(f ServeHTTPFn, w http.ResponseWriter, r *ht
 }
 
 func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error {
-	leader, err := s.store.LeadServer()
+	leader, err := s.Store.LeadServer()
 	if err != nil {
 		return err
 	}
 
 	addr := leader.ID.HTTPAddr()
 	if addr == "" {
-		return errors.New("failed to get raft leader")
+		return errors.New("failed to get raft leader") // nolint:goerr113
 	}
 
 	s.Printf("forward %s to leader %s", r.URL.String(), addr)
 
 	if xor := r.Header.Get(XOriginRemoteAddr); xor != "" {
-		return errors.New("forward two times not allowed")
+		return errors.New("forward two times not allowed") // nolint:goerr113
 	}
 
 	ReverseProxy(addr, r.URL.Path, 10*time.Second).ServeHTTP(w, r) // nolint:gomnd
@@ -183,5 +183,5 @@ func (s *Service) forwardToLeader(w http.ResponseWriter, r *http.Request) error 
 
 // IsLeader tells the current node is raft leader or not.
 func (s *Service) IsLeader() bool {
-	return s.store.IsLeader()
+	return s.Store.IsLeader()
 }

@@ -1,8 +1,10 @@
-package hraftd
+package hraftd_test
 
 import (
 	"errors"
 	"testing"
+
+	"github.com/bingoohuang/hraftd"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -12,8 +14,9 @@ type (
 	OutputStruct struct{ Name string }
 )
 
+// nolint:goerr113
 func TestDealer_Invoke(t *testing.T) {
-	dm := MakeDealerMap()
+	dm := hraftd.MakeDealerMap()
 
 	_ = dm.RegisterJobDealer("/testjob1", func(is InputStruct) (OutputStruct, error) {
 		return OutputStruct(is), nil

@@ -1,15 +1,16 @@
 package hraftd
 
 import (
-	"encoding/json"
 	"errors"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 // JobRsp defines the Job Response structure.
 type JobRsp struct {
-	OK   bool            `json:"ok"`
-	Msg  string          `json:"msg,omitempty"`
-	Data json.RawMessage `json:"data,omitempty"`
+	OK   bool                `json:"ok"`
+	Msg  string              `json:"msg,omitempty"`
+	Data jsoniter.RawMessage `json:"data,omitempty"`
 }
 
 // DistributeJob distributes job to the peer node in the raft clusters.
@@ -29,8 +30,8 @@ func (p Peer) DistributeJob(logger LevelLogger, path string, req interface{}, rs
 	logger.Printf("dispatch job stateCode:%d, rsp OK: %v, Msg:%s", stateCode, jobRsp.OK, jobRsp.Msg)
 
 	if !jobRsp.OK {
-		return errors.New(jobRsp.Msg)
+		return errors.New(jobRsp.Msg) // nolint:goerr113
 	}
 
-	return json.Unmarshal(jobRsp.Data, rsp)
+	return jsoniter.Unmarshal(jobRsp.Data, rsp)
 }

@@ -308,7 +308,6 @@ func (a *Arg) parseFlagRaftNodeID() {
 	a.NodeID.Fix(a.HostIP)
 }
 
-// nolint:gomnd
 func (a *Arg) parseFlagRaftDir() {
 	if a.RaftNodeDir != "" {
 		return
@@ -367,7 +366,7 @@ func (a *Arg) Join() error {
 		}
 	}
 
-	return fmt.Errorf("failed to join %s", a.JoinAddrs)
+	return fmt.Errorf("failed to join %s", a.JoinAddrs) // nolint:goerr113
 }
 
 // Intercept intercepts the raft log applying.
@@ -419,7 +418,7 @@ func Join(logger LevelLogger, joinAddr, raftAddr string, nodeID NodeID) error {
 		return checkJoined(logger, nodeID)
 	}
 
-	return errors.New(r.Msg)
+	return errors.New(r.Msg) // nolint:goerr113
 }
 
 func checkJoined(logger LevelLogger, nodeID NodeID) error {
@@ -434,10 +433,11 @@ func checkJoined(logger LevelLogger, nodeID NodeID) error {
 		}
 	}
 
-	return fmt.Errorf("checked failed for joined node %s", nodeID)
+	return fmt.Errorf("checked failed for joined node %s", nodeID) // nolint:goerr113
 }
 
 // Cluster retrieves the RaftCluster.
+// nolint:gofumpt
 func Cluster(logger LevelLogger, nodeID NodeID) (v RaftCluster, err error) {
 	clusterURL := nodeID.URLRaftCluster()
 	logger.Printf("GET Cluster %s", clusterURL)

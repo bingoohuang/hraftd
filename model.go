@@ -13,7 +13,7 @@ const StateLeader = "Leader"
 // StateFollower is the state string for follower.
 const StateFollower = "Follower"
 
-// Peer defines the peers information
+// Peer defines the peers information.
 type Peer struct {
 	Address  string `json:"address"`
 	ID       NodeID `json:"id"`
@@ -37,7 +37,7 @@ func (p Peer) AnyStateOf(states ...string) bool {
 	return false
 }
 
-// RaftCluster is raft cluster
+// RaftCluster is raft cluster.
 type RaftCluster struct {
 	Current Peer   `json:"current"`
 	Leader  Peer   `json:"leader"`
@@ -57,13 +57,13 @@ func (r RaftCluster) ActivePeers() []Peer {
 	return actives
 }
 
-// JoinRequest defines the Raft join request
+// JoinRequest defines the Raft join request.
 type JoinRequest struct {
 	Addr   string `json:"addr"`
 	NodeID NodeID `json:"id"`
 }
 
-// Fix fixes the join request's host
+// Fix fixes the join request's host.
 func (r *JoinRequest) Fix(remoteAddr string) {
 	remoteHost, _, _ := net.SplitHostPort(remoteAddr)
 	host := EqualsThen(remoteHost, "127.0.0.1", "")
@@ -73,14 +73,14 @@ func (r *JoinRequest) Fix(remoteAddr string) {
 	r.NodeID.Fix(host)
 }
 
-// Rsp defines the Raft join response
+// Rsp defines the Raft join response.
 type Rsp struct {
 	OK   bool        `json:"ok"`
 	Msg  string      `json:"msg,omitempty"`
 	Data interface{} `json:"data,omitempty"`
 }
 
-// Command defines raft log value's structure
+// Command defines raft log value's structure.
 type Command struct {
 	Op    string `json:"op,omitempty"`
 	Key   string `json:"key,omitempty"`

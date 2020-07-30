@@ -15,13 +15,13 @@ type Identifier interface {
 // Distributor is the role to charge the distribution among the hraft cluster nodes.
 type Distributor struct {
 	// sticky to the previous nodeID when redistribute every time.
-	stickyMap map[string]NodeID
+	StickyMap map[string]NodeID
 }
 
 // NewDistributor makes a new Distributor.
 func NewDistributor() *Distributor {
 	d := &Distributor{
-		stickyMap: make(map[string]NodeID),
+		StickyMap: make(map[string]NodeID),
 	}
 
 	return d
@@ -51,7 +51,7 @@ func (d *Distributor) Distribute(peers []Peer, data, emptyReceiver interface{}) 
 	// 先保持粘滞
 	for i := 0; i < dataLen; i++ {
 		item := dv.Index(i).Interface().(Identifier)
-		if nodeID := d.stickyMap[item.ID()]; nodeID != "" {
+		if nodeID := d.StickyMap[item.ID()]; nodeID != "" {
 			v := reflect.New(rt)
 			a := v.Interface().(DistributedApplier)
 			a.Distribute(nodeID, item)
@@ -88,7 +88,7 @@ func (d *Distributor) Distribute(peers []Peer, data, emptyReceiver interface{}) 
 
 // Put puts the node ID related to id directly.
 func (d *Distributor) Put(id string, nodeID NodeID) {
-	d.stickyMap[id] = nodeID
+	d.StickyMap[id] = nodeID
 }
 
 func (d *Distributor) checkDataType(data interface{}) reflect.Value {
@@ -140,9 +140,9 @@ func (d *Distributor) cleanKeysNotIn(peers []Peer) {
 		peersMap[p.ID] = true
 	}
 
-	for id, nodeID := range d.stickyMap {
+	for id, nodeID := range d.StickyMap {
 		if _, ok := peersMap[nodeID]; !ok {
-			delete(d.stickyMap, id)
+			delete(d.StickyMap, id)
 		}
 	}
 }

@@ -2,16 +2,17 @@ package hraftd
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
-// EmptyThen returns t if s is empty
+// EmptyThen returns t if s is empty.
 func EmptyThen(s, t string) string {
 	if s == "" {
 		return t
@@ -20,7 +21,7 @@ func EmptyThen(s, t string) string {
 	return s
 }
 
-// EqualsThen returns t if s equals to e
+// EqualsThen returns t if s equals to e.
 func EqualsThen(s, e, t string) string {
 	if s == e {
 		return t
@@ -29,7 +30,7 @@ func EqualsThen(s, e, t string) string {
 	return s
 }
 
-// If returns s if i else t
+// If returns s if i else t.
 func If(i bool, s, t string) string {
 	if i {
 		return s
@@ -38,7 +39,7 @@ func If(i bool, s, t string) string {
 	return t
 }
 
-// CloneMap clones a map
+// CloneMap clones a map.
 func CloneMap(m map[string]string) map[string]string {
 	o := make(map[string]string)
 
@@ -49,13 +50,13 @@ func CloneMap(m map[string]string) map[string]string {
 	return o
 }
 
-// WriteAsText writes s as text/plain
+// WriteAsText writes s as text/plain.
 func WriteAsText(s string, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = w.Write([]byte(s))
 }
 
-// WriteAsJSON writes m as JSON
+// WriteAsJSON writes m as JSON.
 func WriteAsJSON(m interface{}, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
@@ -99,20 +100,20 @@ func ParseTime(s string) (time.Time, error) {
 	return time.Parse(dfmt, s)
 }
 
-// Jsonify jsonifies v to JSON string
+// Jsonify jsonifies v to JSON string.
 func Jsonify(v interface{}) string {
 	return string(JsonifyBytes(v))
 }
 
-// Jsonify4Print jsonifies v to JSON string for printing only
+// Jsonify4Print jsonifies v to JSON string for printing only.
 func Jsonify4Print(v interface{}) string {
 	all := strings.ReplaceAll(Jsonify(v), `\"`, ``)
 	return strings.ReplaceAll(all, `"`, ``)
 }
 
-// JsonifyBytes jsonifies v to JSON []byte
+// JsonifyBytes jsonifies v to JSON []byte.
 func JsonifyBytes(v interface{}) []byte {
-	b, _ := json.Marshal(v)
+	b, _ := jsoniter.Marshal(v)
 	return b
 }
 
@@ -127,12 +128,12 @@ func TryParseJSON(v string) interface{} {
 
 // ParseJSON parses string to v.
 func ParseJSON(v string) (m interface{}, err error) {
-	err = json.Unmarshal([]byte(v), &m)
+	err = jsoniter.Unmarshal([]byte(v), &m)
 
 	return
 }
 
-// WaitInterrupt waits on interrupt signal
+// WaitInterrupt waits on interrupt signal.
 func WaitInterrupt() {
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, os.Interrupt)

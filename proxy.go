@@ -31,7 +31,7 @@ func ReverseProxy(targetHost, targetPath string, timeout time.Duration) *httputi
 	return &httputil.ReverseProxy{Director: director, Transport: t}
 }
 
-// IsRelativeForward tells the statusCode is 301/302 and locationHeader is relative
+// IsRelativeForward tells the statusCode is 301/302 and locationHeader is relative.
 func IsRelativeForward(statusCode int, locationHeader string) bool {
 	switch statusCode {
 	case http.StatusMovedPermanently, http.StatusFound:
@@ -53,7 +53,7 @@ func HasPrefix(s string, p ...string) bool {
 	return false
 }
 
-// Dialer defines dialer function alias
+// Dialer defines dialer function alias.
 type Dialer func(ctx context.Context, net, addr string) (c net.Conn, err error)
 
 // TimeoutDialer returns functions of connection dialer with timeout settings for http.Transport Dial field.

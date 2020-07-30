@@ -1,10 +1,12 @@
-package hraftd
+package hraftd_test
 
 import (
 	"io/ioutil"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/bingoohuang/hraftd"
 )
 
 // Test_StoreOpen tests that the store can be opened.
@@ -12,7 +14,7 @@ func Test_StoreOpen(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
-	s := New(&Arg{
+	s := hraftd.New(&hraftd.Arg{
 		RaftAddr:    "127.0.0.1:0",
 		RaftNodeDir: tmpDir,
 		NodeID:      "node0",
@@ -24,12 +26,12 @@ func Test_StoreOpen(t *testing.T) {
 }
 
 // Test_StoreOpenSingleNode tests that a Command can be applied to the log
-// nolint:gomnd
+// nolint:gomnd,wsl
 func Test_StoreOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
-	s := New(&Arg{
+	s := hraftd.New(&hraftd.Arg{
 		RaftAddr:    "127.0.0.1:0",
 		RaftNodeDir: tmpDir,
 		NodeID:      "node0",
@@ -70,12 +72,12 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 
 // Test_StoreInMemOpenSingleNode tests that a Command can be applied to the log
 // stored in RAM.
-// nolint:gomnd
+// nolint:gomnd,wsl
 func Test_StoreInMemOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
 
-	s := New(&Arg{
+	s := hraftd.New(&hraftd.Arg{
 		RaftAddr:    "127.0.0.1:0",
 		RaftNodeDir: tmpDir,
 		NodeID:      "node0",
@@ -96,6 +98,7 @@ func Test_StoreInMemOpenSingleNode(t *testing.T) {
 	// Wait for committed log entry to be applied.
 	time.Sleep(500 * time.Millisecond)
 	value, _ := s.Get("foo")
+
 	if value != "bar" {
 		t.Fatalf("key has wrong value: %s", value)
 	}

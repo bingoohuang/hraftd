@@ -2,7 +2,6 @@ package hraftd
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +12,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 
 	hclog "github.com/hashicorp/go-hclog"
 
@@ -91,7 +92,7 @@ func (s *RaftStore) RaftStats() map[string]interface{} {
 // and does not block on writes.
 func (s *RaftStore) LeaderCh() <-chan bool { return s.raft.LeaderCh() }
 
-// NodeState returns the state of current node
+// NodeState returns the state of current node.
 func (s *RaftStore) NodeState() string { return s.raft.State().String() }
 
 // IsLeader tells the current node is raft leader or not.
@@ -100,13 +101,13 @@ func (s *RaftStore) IsLeader() bool { return s.raft.State() == raft.Leader }
 // LeaderAddr returns the address of the current leader. Returns blank if no leader.
 func (s *RaftStore) LeaderAddr() string { return string(s.raft.Leader()) }
 
-// LeadServer returns the raft lead server
+// LeadServer returns the raft lead server.
 func (s *RaftStore) LeadServer() (Peer, error) {
 	leader := s.raft.Leader()
 	peer := Peer{}
 
 	if leader == "" {
-		return peer, errors.New("leader NA")
+		return peer, errors.New("leader NA") // nolint:goerr113
 	}
 
 	if err := s.walkRaftServers(func(srv raft.Server) (bool, error) {
@@ -126,13 +127,13 @@ func (s *RaftStore) LeadServer() (Peer, error) {
 	}
 
 	if peer.ID == "" {
-		return peer, errors.New("leader NA")
+		return peer, errors.New("leader NA") // nolint:goerr113
 	}
 
 	return peer, nil
 }
 
-// Cluster returns the raft cluster state
+// Cluster returns the raft cluster state.
 func (s *RaftStore) Cluster() (RaftCluster, error) {
 	leaderAddress := s.raft.Leader()
 	cluster := RaftCluster{
@@ -214,7 +215,7 @@ func (s *RaftStore) Open() error {
 
 	r, err := raft.NewRaft(config, s, logStore, stableStore, snapshots, t)
 	if err != nil {
-		return fmt.Errorf("new raft: %s", err)
+		return fmt.Errorf("new raft: %s", err) // nolint:goerr113
 	}
 
 	s.raft = r
@@ -292,13 +293,13 @@ func (s *RaftStore) createStores() (raft.LogStore, raft.StableStore, raft.Snapsh
 
 	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftNodeDir, "raft.db"))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("new bolt store: %s", err)
+		return nil, nil, nil, fmt.Errorf("new bolt store: %s", err) // nolint:goerr113
 	}
 
 	// Create the snapshot store. This allows the Raft to truncate the log.
 	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftNodeDir, retainSnapshotCount, os.Stderr)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("file snapshot store: %s", err)
+		return nil, nil, nil, fmt.Errorf("file snapshot store: %s", err) // nolint:goerr113
 	}
 
 	return db, db, ss, nil
@@ -451,7 +452,7 @@ func (s *RaftStore) writePeersJSON(entries []ConfigEntry) error {
 	_ = os.MkdirAll(s.Arg.RaftNodeDir, 0644)
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 
-	return ioutil.WriteFile(peerFile, JsonifyBytes(entries), 0644)
+	return ioutil.WriteFile(peerFile, JsonifyBytes(entries), 0600)
 }
 
 // ReadPeersJSON consumes a legacy peers.json file in the format of the old JSON
@@ -468,7 +469,7 @@ func ReadPeersJSON(path string) (raft.Configuration, error) {
 
 	var peers []ConfigEntry
 
-	dec := json.NewDecoder(bytes.NewReader(buf))
+	dec := jsoniter.NewDecoder(bytes.NewReader(buf))
 	if err := dec.Decode(&peers); err != nil {
 		return raft.Configuration{}, err
 	}
@@ -519,7 +520,7 @@ func (s *RaftStore) WaitForLeader(timeout time.Duration) (string, error) {
 			s.joinNodesFromLeader()
 		case <-tmr.C:
 			s.Infof("waitForLeader timeout %v expired", timeout)
-			return "", fmt.Errorf("WaitForLeader timeout expired")
+			return "", fmt.Errorf("WaitForLeader timeout expired") // nolint:goerr113
 		}
 	}
 }
@@ -603,7 +604,7 @@ func (s *RaftStore) WaitForAppliedIndex(idx uint64, timeout time.Duration) error
 				return nil
 			}
 		case <-tmr.C:
-			return fmt.Errorf("timeout expired")
+			return fmt.Errorf("timeout expired") // nolint:goerr113
 		}
 	}
 }
@@ -611,7 +612,7 @@ func (s *RaftStore) WaitForAppliedIndex(idx uint64, timeout time.Duration) error
 // Apply applies a Raft log entry to the key-value store.
 func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	var c Command
-	if err := json.Unmarshal(l.Data, &c); err != nil {
+	if err := jsoniter.Unmarshal(l.Data, &c); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal Command: %s", err.Error()))
 	}
 
@@ -622,7 +623,7 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 	switch c.Op {
 	case "set":
 		t, err := ParseTime(c.Time)
-		if err != nil || t.Before(time.Now().Add(-100*time.Second)) { // nolint:gomnd
+		if err != nil || t.Before(time.Now().Add(-100*time.Second)) {
 			s.Debugf("too old command  %+v, ignored", c)
 			return nil
 		}
@@ -649,8 +650,8 @@ func (s *RaftStore) processSetRaftCluster(c Command) {
 	}
 
 	v := RaftCluster{}
-	if err := json.Unmarshal([]byte(c.Value), &v); err != nil {
-		s.Infof("json.Unmarshal error %+v", err)
+	if err := jsoniter.Unmarshal([]byte(c.Value), &v); err != nil {
+		s.Infof("jsoniter.Unmarshal error %+v", err)
 	} else if err := s.writeClusterConfigEntries(v); err != nil {
 		s.Infof("writeClusterConfigEntries error %+v", err)
 	} else {
@@ -671,7 +672,7 @@ func (s *RaftStore) Snapshot() (raft.FSMSnapshot, error) {
 // Restore stores the key-value store to a previous state.
 func (s *RaftStore) Restore(rc io.ReadCloser) error {
 	o := make(map[string]string)
-	if err := json.NewDecoder(rc).Decode(&o); err != nil {
+	if err := jsoniter.NewDecoder(rc).Decode(&o); err != nil {
 		return err
 	}
 
@@ -771,9 +772,9 @@ func (h hclogLogger) ResetNamed(name string) hclog.Logger {
 
 func (h *hclogLogger) convertLevel(level hclog.Level) LogLevel {
 	switch level {
-	case hclog.Debug:
+	case hclog.Trace, hclog.Debug:
 		return LogLevelDebug
-	case hclog.Info:
+	case hclog.NoLevel, hclog.Info:
 		return LogLevelInfo
 	case hclog.Warn:
 		return LogLevelWarn

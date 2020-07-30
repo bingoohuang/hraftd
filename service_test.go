@@ -1,4 +1,4 @@
-package hraftd
+package hraftd_test
 
 import (
 	"bytes"
@@ -9,16 +9,18 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bingoohuang/hraftd"
 )
 
 // Test_NewServer tests that a server can perform all basic operations.
 func Test_NewServer(t *testing.T) {
 	store := newTestStore()
-	arg := &Arg{
+	arg := &hraftd.Arg{
 		RaftAddr: ":0",
 		HTTPAddr: ":0",
 	}
-	s := &testServer{&Service{Arg: arg, store: store}}
+	s := &testServer{&hraftd.Service{Arg: arg, Store: store}}
 
 	if err := s.StartAll(); err != nil {
 		t.Fatalf("failed to start HTTP service: %s", err)
@@ -53,7 +55,7 @@ func Test_NewServer(t *testing.T) {
 }
 
 type testServer struct {
-	*Service
+	*hraftd.Service
 }
 
 func (t *testServer) URL() string {
@@ -68,8 +70,8 @@ type testStore struct {
 func newTestStore() *testStore { return &testStore{m: make(map[string]string)} }
 
 func (t *testStore) RaftStats() map[string]interface{}             { return map[string]interface{}{} }
-func (t *testStore) Cluster() (RaftCluster, error)                 { return RaftCluster{}, nil }
-func (t *testStore) LeadServer() (Peer, error)                     { return Peer{}, nil }
+func (t *testStore) Cluster() (hraftd.RaftCluster, error)          { return hraftd.RaftCluster{}, nil }
+func (t *testStore) LeadServer() (hraftd.Peer, error)              { return hraftd.Peer{}, nil }
 func (t *testStore) WaitForLeader(_ time.Duration) (string, error) { return "", nil }
 func (t *testStore) WaitForApplied(_ time.Duration) error          { return nil }
 func (t *testStore) LeaderCh() <-chan bool                         { return nil }
@@ -82,7 +84,7 @@ func (t *testStore) IsLeader() bool                                { return true
 func (t *testStore) NodeState() string                             { return "" }
 
 func doGet(t *testing.T, url, key string) string {
-	resp, err := http.Get(url + KeyPath + "/" + key)
+	resp, err := http.Get(url + hraftd.KeyPath + "/" + key) // nolint:noctx
 	if err != nil {
 		t.Fatalf("failed to GET key: %s", err)
 	}
@@ -97,7 +99,9 @@ func doGet(t *testing.T, url, key string) string {
 }
 
 func doPost(t *testing.T, url, key, value string) {
-	resp, err := http.Post(url+KeyPath, ContentTypeJSON, bytes.NewReader(JsonifyBytes(map[string]string{key: value})))
+	// nolint:noctx
+	resp, err := http.Post(url+hraftd.KeyPath, hraftd.ContentTypeJSON,
+		bytes.NewReader(hraftd.JsonifyBytes(map[string]string{key: value})))
 	if err != nil {
 		t.Fatalf("POST request failed: %s", err)
 	}
@@ -106,7 +110,7 @@ func doPost(t *testing.T, url, key, value string) {
 }
 
 func doDelete(t *testing.T, u, key string) {
-	ru, err := url.Parse(u + KeyPath + "/" + key)
+	ru, err := url.Parse(u + hraftd.KeyPath + "/" + key)
 	if err != nil {
 		t.Fatalf("failed to parse URL for delete: %s", err)
 	}

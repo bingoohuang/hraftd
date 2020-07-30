@@ -108,7 +108,7 @@ func demoDistributeJobs(logger hraftd.LevelLogger, activePeers []hraftd.Peer) {
 	for i := 0; i < 10; i++ {
 		req := JobReq{ID: fmt.Sprintf("ID：%d", i)}
 
-		if serverLen > 0 {
+		if serverLen > 0 { // nolint:nestif
 			jobIndex := i % serverLen
 			peer := activePeers[jobIndex]
 			r := &JobRsp{}

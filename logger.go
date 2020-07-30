@@ -47,45 +47,45 @@ func (l LogLevel) String() string {
 }
 
 const (
-	// LogLevelDebug debug log level
+	// LogLevelDebug debug log level.
 	LogLevelDebug LogLevel = iota
-	// LogLevelInfo info log level
+	// LogLevelInfo info log level.
 	LogLevelInfo
-	// LogLevelWarn warn log level
+	// LogLevelWarn warn log level.
 	LogLevelWarn
-	// LogLevelError error log level
+	// LogLevelError error log level.
 	LogLevelError
 )
 
-// DefaultLogger is the default global logger
+// DefaultLogger is the default global logger.
 // nolint
 var DefaultLogger = NewSLogger()
 
-// Logger defines logger interface
+// Logger defines logger interface.
 type Logger interface {
-	// SetLogLevel sets the log level
+	// SetLogLevel sets the log level.
 	SetLogLevel(logLevel LogLevel)
-	// GetLogLevel returns the log level
+	// GetLogLevel returns the log level.
 	GetLogLevel() LogLevel
-	// GetIOWriter returns io.Writer
+	// GetIOWriter returns io.Writer.
 	GetIOWriter() io.Writer
-	// Logf prints log
+	// Logf prints log.
 	Logf(level LogLevel, format string, data ...interface{})
 }
 
 // LevelLogger ...
 type LevelLogger interface {
-	// Printf prints info
+	// Printf prints info.
 	Printf(format string, data ...interface{})
-	// Debugf prints debug
+	// Debugf prints debug.
 	Debugf(format string, data ...interface{})
-	// Infof prints info
+	// Infof prints info.
 	Infof(format string, data ...interface{})
-	// Warnf prints warn messages
+	// Warnf prints warn messages.
 	Warnf(format string, data ...interface{})
-	// Errorf prints error messages
+	// Errorf prints error messages.
 	Errorf(format string, data ...interface{})
-	// Panicf prints error messages and panics
+	// Panicf prints error messages and panics.
 	Panicf(format string, data ...interface{})
 }
 
@@ -95,46 +95,46 @@ type LoggerMore interface {
 	LevelLogger
 }
 
-// LevelLoggerAdapter adapters Logger to LevelLogger
+// LevelLoggerAdapter adapters Logger to LevelLogger.
 type LevelLoggerAdapter struct{ Logger }
 
-// Debugf prints debug
+// Debugf prints debug.
 func (l LevelLoggerAdapter) Debugf(format string, data ...interface{}) {
 	l.Logf(LogLevelDebug, format, data...)
 }
 
-// Printf prints info
+// Printf prints info.
 func (l LevelLoggerAdapter) Printf(format string, data ...interface{}) {
 	l.Logf(LogLevelInfo, format, data...)
 }
 
-// Infof prints info
+// Infof prints info.
 func (l LevelLoggerAdapter) Infof(format string, data ...interface{}) {
 	l.Logf(LogLevelInfo, format, data...)
 }
 
-// Warnf prints warn messages
+// Warnf prints warn messages.
 func (l LevelLoggerAdapter) Warnf(format string, data ...interface{}) {
 	l.Logf(LogLevelWarn, format, data...)
 }
 
-// Errorf prints error messages
+// Errorf prints error messages.
 func (l LevelLoggerAdapter) Errorf(format string, data ...interface{}) {
 	l.Logf(LogLevelError, format, data...)
 }
 
-// Panicf prints error messages and panic
+// Panicf prints error messages and panic.
 func (l LevelLoggerAdapter) Panicf(format string, data ...interface{}) {
 	l.Logf(LogLevelError, format, data...)
 	panic(fmt.Sprintf(format, data...))
 }
 
-// Writer log writer interface
+// Writer log writer interface.
 type Writer interface {
 	Print(...interface{})
 }
 
-// SLogger defines the simplest logger implementation of Interface
+// SLogger defines the simplest logger implementation of Interface.
 type SLogger struct {
 	Writer
 	IOWriter io.Writer
@@ -142,7 +142,7 @@ type SLogger struct {
 	LevelLogger
 }
 
-// NewSLogger creates a new SLogger
+// NewSLogger creates a new SLogger.
 func NewSLogger() *SLogger {
 	k := &SLogger{
 		Writer:   NewStdLogger(os.Stdout),
@@ -155,16 +155,16 @@ func NewSLogger() *SLogger {
 	return k
 }
 
-// GetIOWriter returns io.Writer
+// GetIOWriter returns io.Writer.
 func (l *SLogger) GetIOWriter() io.Writer { return l.IOWriter }
 
-// SetLogLevel sets the log level
+// SetLogLevel sets the log level.
 func (l *SLogger) SetLogLevel(level LogLevel) { l.Level = level }
 
-// GetLogLevel gets the log level
+// GetLogLevel gets the log level.
 func (l SLogger) GetLogLevel() LogLevel { return l.Level }
 
-// Logf prints log
+// Logf prints log.
 func (l SLogger) Logf(level LogLevel, format string, data ...interface{}) {
 	if l.Level <= level {
 		l.Print("[" + level.String() + "] " + fmt.Sprintf(format, data...))
@@ -202,9 +202,11 @@ func itoa(buf *[]byte, i int, wid int) {
 
 	for i >= 10 || wid > 1 {
 		wid--
+
 		q := i / 10
 		b[bp] = byte('0' + i - q*10)
 		bp--
+
 		i = q
 	}
 	// i < 10
@@ -301,4 +303,5 @@ func (l *StdLogger) Output(s string) error {
 
 // Print calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Print.
+// nolint:gofumpt
 func (l *StdLogger) Print(v ...interface{}) { _ = l.Output(fmt.Sprint(v...)) }

@@ -43,14 +43,14 @@ func ReplaceAddr2Local(ip string) (replaced, original string) {
 	return ip, ip
 }
 
-// TryReplaceAddr2Local try to replace an local IP to localhost
+// TryReplaceAddr2Local try to replace an local IP to localhost.
 func TryReplaceAddr2Local(ip string) (replaced string) {
 	replaced, _ = ReplaceAddr2Local(ip)
 
 	return replaced
 }
 
-// ReplaceIP replace a single local address to main iface ip
+// ReplaceIP replace a single local address to main iface ip.
 func ReplaceIP(address, primaryIP string) string {
 	sepPos := strings.LastIndex(address, ":")
 
@@ -66,7 +66,7 @@ func ReplaceIP(address, primaryIP string) string {
 	return address
 }
 
-// ReplaceIPAll replace local addresses slice to main iface ips slice
+// ReplaceIPAll replace local addresses slice to main iface ips slice.
 func ReplaceIPAll(addresses []string, primaryIP string) []string {
 	for i, addr := range addresses {
 		addresses[i] = ReplaceIP(addr, primaryIP)
@@ -107,19 +107,19 @@ func InferHostIPv4(ifaceName string) string {
 	return ipList[0]
 }
 
-// IfaceNameMatchMode defines the mode for IfaceName matching
+// IfaceNameMatchMode defines the mode for IfaceName matching.
 type IfaceNameMatchMode int
 
 const (
-	// IfaceNameMatchPrefix matches iface name in prefix mode
+	// IfaceNameMatchPrefix matches iface name in prefix mode.
 	IfaceNameMatchPrefix IfaceNameMatchMode = iota
 	// IfaceNameMatchExactly matches iface name in exactly same mode
 	IfaceNameMatchExactly
 )
 
-// HostIPv4 根据 primaryIfaceName 确定的名字，返回主IP PrimaryIP，以及以空格分隔的本机IP列表 ipList
-// PrimaryIfaceName 表示主网卡的名称，用于获取主IP(v4)，不设置时，从eth0(linux), en0(darwin)，或者第一个ip v4的地址
-// eg.  HostIP("eth0", "en0") // nolint
+// HostIPv4 根据 primaryIfaceName 确定的名字，返回主IP PrimaryIP，以及以空格分隔的本机IP列表 ipList.
+// PrimaryIfaceName 表示主网卡的名称，用于获取主IP(v4)，不设置时，从eth0(linux), en0(darwin)，或者第一个ip v4的地址.
+// eg.  HostIP("eth0", "en0").
 func HostIPv4(mode IfaceNameMatchMode, primaryIfaceNames ...string) (ipList []string, err error) {
 	ips, err := gonet.ListIfaces(gonet.IPv4)
 	if err != nil {

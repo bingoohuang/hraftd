@@ -5,7 +5,7 @@ type LogDealer struct {
 	DealerMap
 }
 
-// MakeLogDealer makes a LogDealer
+// MakeLogDealer makes a LogDealer.
 func MakeLogDealer() LogDealer {
 	return LogDealer{DealerMap: MakeDealerMap()}
 }
