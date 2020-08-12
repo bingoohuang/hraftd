@@ -71,7 +71,7 @@ func main() {
 // RigConfItem defines 配置项.
 type RigConfItem struct {
 	ID     int64         `json:"id"`
-	Name   string        `json:"name"`
+	Name   string        `json:"name" faker:"len=30000"`
 	NodeID hraftd.NodeID `json:"node_id"`
 }
 

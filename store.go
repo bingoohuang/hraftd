@@ -196,6 +196,7 @@ func (s *RaftStore) Open() error {
 	config := raft.DefaultConfig()
 	config.LocalID = raft.ServerID(s.Arg.NodeID)
 
+	_ = os.MkdirAll(s.Arg.RaftNodeDir, os.ModePerm)
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 	peerFileExits := PathExists(peerFile)
 
@@ -288,6 +289,8 @@ func (s *RaftStore) createTransport() (*raft.NetworkTransport, error) {
 // createStores creates the log store and stable store.
 func (s *RaftStore) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
 	if s.Arg.InMem {
+		// NewInmemStore returns a new in-memory backend. Do not ever
+		// use for production. Only for testing.
 		return raft.NewInmemStore(), raft.NewInmemStore(), raft.NewInmemSnapshotStore(), nil
 	}
 

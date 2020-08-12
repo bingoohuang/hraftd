@@ -26,7 +26,7 @@ func Test_StoreOpen(t *testing.T) {
 }
 
 // Test_StoreOpenSingleNode tests that a Command can be applied to the log
-// nolint:gomnd,wsl
+// nolint:gomnd,wsl,dupl
 func Test_StoreOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)
@@ -72,7 +72,7 @@ func Test_StoreOpenSingleNode(t *testing.T) {
 
 // Test_StoreInMemOpenSingleNode tests that a Command can be applied to the log
 // stored in RAM.
-// nolint:gomnd,wsl
+// nolint:gomnd,wsl,dupl
 func Test_StoreInMemOpenSingleNode(t *testing.T) {
 	tmpDir, _ := ioutil.TempDir("", "store_test")
 	defer os.RemoveAll(tmpDir)

@@ -95,7 +95,8 @@ func DefineFlags(p FlagProvider, flagOptionFns ...FlagOptionFn) *Arg {
 	f := createFlagNames(flagOptionFns)
 	a := MakeArg()
 
-	boolVar(p, &a.InMem, true, f.Rmem, "Use in-memory storage for Raft")
+	boolVar(p, &a.InMem, false, f.Rmem,
+		"Use in-memory storage for Raft. (Do not ever use for production. Only for testing)")
 	strVar(p, &a.HTTPAddr, f.Haddr, "HTTP server bind address")
 	strVar(p, &a.HTTPAdv, f.Hadv, "Advertised HTTP address. If not set, same as HTTP server")
 	strVar(p, &a.RaftAddr, f.Raddr, "Raft communication bind address. If not set, same as haddr(port+1000)")
