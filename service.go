@@ -2,8 +2,10 @@ package hraftd
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 	"time"
 )
@@ -110,9 +112,42 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleRaftRequest(w, r)
 	case strings.HasPrefix(path, DoJobPath):
 		CheckMethodE("POST", s.handleJobRequest, w, r)
+	case strings.HasPrefix(path, "/debug/pprof"):
+		_ = debugPprof(w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+func debugPprof(w http.ResponseWriter, req *http.Request) error {
+	switch req.URL.Path {
+	case "/debug/pprof":
+		pprof.Index(w, req)
+	case "/debug/pprof/cmdline":
+		pprof.Cmdline(w, req)
+	case "/debug/pprof/symbol":
+		pprof.Symbol(w, req)
+	case "/debug/pprof/profile":
+		pprof.Profile(w, req)
+	case "/debug/pprof/trace":
+		pprof.Trace(w, req)
+	case "/debug/pprof/heap":
+		pprof.Handler("heap").ServeHTTP(w, req)
+	case "/debug/pprof/goroutine":
+		pprof.Handler("goroutine").ServeHTTP(w, req)
+	case "/debug/pprof/allocs":
+		pprof.Handler("allocs").ServeHTTP(w, req)
+	case "/debug/pprof/block":
+		pprof.Handler("block").ServeHTTP(w, req)
+	case "/debug/pprof/threadcreate":
+		pprof.Handler("threadcreate").ServeHTTP(w, req)
+	case "/debug/pprof/mutex":
+		pprof.Handler("mutex").ServeHTTP(w, req)
+	default:
+		return fmt.Errorf("404 %s", req.URL.Path)
+	}
+
+	return nil
 }
 
 // ServeHTTPFn defines ServeHTTP function prototype.

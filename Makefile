@@ -12,3 +12,16 @@ install: proxy
 
 test: proxy
 	go test ./...
+
+lint:
+	#golangci-lint run --enable-all
+	golangci-lint run ./...
+
+fmt:
+	gofumports -w .
+	gofumpt -w .
+	gofmt -s -w .
+	go mod tidy
+	go fmt ./...
+	revive .
+	goimports -w .

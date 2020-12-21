@@ -102,7 +102,8 @@ func ParseTime(s string) (time.Time, error) {
 
 // Jsonify jsonifies v to JSON string.
 func Jsonify(v interface{}) string {
-	return string(JsonifyBytes(v))
+	b, _ := jsoniter.MarshalToString(v)
+	return b
 }
 
 // Jsonify4Print jsonifies v to JSON string for printing only.
@@ -128,7 +129,7 @@ func TryParseJSON(v string) interface{} {
 
 // ParseJSON parses string to v.
 func ParseJSON(v string) (m interface{}, err error) {
-	err = jsoniter.Unmarshal([]byte(v), &m)
+	err = jsoniter.UnmarshalFromString(v, &m)
 
 	return
 }

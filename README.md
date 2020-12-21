@@ -76,7 +76,7 @@ This would not be necessary if each node ran on a different host.
 
 This tells each new node to join the existing node. Once joined, each node now knows about the key:
 
-`curl localhost:11000/hraftd/key/user1 localhost:11001/key/user1 localhost:11002/key/user1`
+`curl localhost:11000/hraftd/key/user1 localhost:11001/hraftd/key/user1 localhost:11002/hraftd/key/user1`
 
 Furthermore, you can add a second key:
 
@@ -85,7 +85,7 @@ Furthermore, you can add a second key:
 Confirm that the new key has been set like so:
 
 ```bash
-$ curl localhost:11000/hraftd/key/user2 localhost:11001/key/user2 localhost:11002/key/user2
+$ curl localhost:11000/hraftd/key/user2 localhost:11001/hraftd/key/user2 localhost:11002/hraftd/key/user2
 {"user2":"robin"}{"user2":"robin"}{"user2":"robin"}
 $ curl localhost:11000/hraftd/raft/stats |jq
 ```
@@ -187,7 +187,7 @@ Let's also assume that each machine can reach the other two machines using these
 You should start the nodes (eg at 192.168.0.1,192.168.0.2,192.168.0.3) like so:
 
 ```
-hraftd -haddr :11000 -rjoin 192.168.0.1:11000
+hraftd --haddr :11000 --rjoin 192.168.0.1:11000
 ```
 
 Specifically using ports 11000 and 12000 is not required. You can use other ports if you wish.
@@ -276,7 +276,7 @@ to replicate a SQLite database, check out [rqlite](https://github.com/rqlite/rql
 1. [raft 可视化](http://thesecretlivesofdata.com/raft/)
 1. [Leto - 基于 raft 快速实现一个 key-value 存储系统](https://xiking.win/2018/07/30/implement-key-value-store-using-raft/)
 1. [使用 Raft 实现 VIP 功能](https://zdyxry.github.io/2020/01/17/%E4%BD%BF%E7%94%A8-Raft-%E5%AE%9E%E7%8E%B0-VIP-%E5%8A%9F%E8%83%BD/)
-1. [🚣 Raft implementation in Go](https://github.com/eliben/raft/), 信息入口在[twitter上](https://twitter.com/elibendersky/status/1235769480904667142)
+1. [Raft implementation in Go](https://github.com/eliben/raft/), 信息入口在[twitter上](https://twitter.com/elibendersky/status/1235769480904667142)
     * [Part 0: Introduction](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/)
     * [Part 1: Elections](https://eli.thegreenplace.net/2020/implementing-raft-part-1-elections/)
     * [Part 2: Commands and log replication](https://eli.thegreenplace.net/2020/implementing-raft-part-2-commands-and-log-replication/)

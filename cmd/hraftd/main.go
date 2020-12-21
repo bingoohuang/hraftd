@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/bingoohuang/faker"
-	"github.com/bingoohuang/gou/lo"
+	"github.com/bingoohuang/golog"
 	"github.com/bingoohuang/gou/ran"
 	"github.com/bingoohuang/hraftd"
 	"github.com/hashicorp/raft"
@@ -24,13 +24,11 @@ const rigConf = "rigconf"
 func main() {
 	arg := hraftd.DefineFlags(flag.CommandLine)
 
-	lo.DeclareLogPFlags()
-
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 	_ = viper.BindPFlags(pflag.CommandLine)
 
-	lo.SetupLog()
+	_, _ = golog.SetupLogrus(nil, "", "")
 
 	arg.LoggerMore = hraftd.NewLogrusAdapter(logrus.StandardLogger())
 	arg.Fix()
@@ -71,7 +69,7 @@ func main() {
 // RigConfItem defines 配置项.
 type RigConfItem struct {
 	ID     int64         `json:"id"`
-	Name   string        `json:"name" faker:"len=30000"`
+	Name   string        `json:"name" faker:"len=30"`
 	NodeID hraftd.NodeID `json:"node_id"`
 }
 
@@ -146,7 +144,7 @@ func demoApplyLogs(logger hraftd.LevelLogger, activePeers []hraftd.Peer, h *hraf
 	logger.Printf("create items %s", hraftd.Jsonify4Print(items))
 
 	if err := h.Set(rigConf, hraftd.Jsonify(items)); err != nil {
-		logger.Printf("fail to set rigConf, errror %v", err)
+		logger.Printf("fail to set rigConf, error %v", err)
 	}
 }
 

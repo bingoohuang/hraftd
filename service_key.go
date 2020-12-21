@@ -61,7 +61,7 @@ func (s *Service) doKeyPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for k, v := range m {
-		if err := s.Store.Set(k, v); err != nil {
+		if err := s.Set(k, v); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

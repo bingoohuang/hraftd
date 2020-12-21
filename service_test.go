@@ -90,7 +90,6 @@ func doGet(t *testing.T, url, key string) string {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-
 	if err != nil {
 		t.Fatalf("failed to read response: %s", err)
 	}
@@ -117,7 +116,6 @@ func doDelete(t *testing.T, u, key string) {
 
 	client := http.Client{}
 	resp, err := client.Do(&http.Request{Method: "DELETE", URL: ru})
-
 	if err != nil {
 		t.Fatalf("failed to GET key: %s", err)
 	}

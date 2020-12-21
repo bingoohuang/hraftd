@@ -14,7 +14,6 @@ func (s *DealerMap) handleJobRequest(w http.ResponseWriter, r *http.Request) err
 	path := strings.TrimPrefix(r.URL.String(), DoJobPath)
 	body := gonet.ReadBytes(r.Body)
 	rsp, err := s.Invoke(path, body)
-
 	if err != nil {
 		return err
 	}

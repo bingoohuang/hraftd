@@ -13,12 +13,13 @@ import (
 	"sync"
 	"time"
 
+	raftboltdb "github.com/hashicorp/raft-boltdb"
+
 	jsoniter "github.com/json-iterator/go"
 
 	hclog "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/raft"
-	raftboltdb "github.com/hashicorp/raft-boltdb"
 )
 
 const (
@@ -288,18 +289,12 @@ func (s *RaftStore) createTransport() (*raft.NetworkTransport, error) {
 
 // createStores creates the log store and stable store.
 func (s *RaftStore) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
-	if s.Arg.InMem {
-		// NewInmemStore returns a new in-memory backend. Do not ever
-		// use for production. Only for testing.
-		return raft.NewInmemStore(), raft.NewInmemStore(), raft.NewInmemSnapshotStore(), nil
-	}
-
 	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftNodeDir, "raft.db"))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("new bolt store: %s", err) // nolint:goerr113
 	}
 
-	// Create the snapshot store. This allows the Raft to truncate the log.
+	// Create the snapshot store. This allows the Raft to truncate the log，这里会定期压缩boltdb
 	ss, err := raft.NewFileSnapshotStore(s.Arg.RaftNodeDir, retainSnapshotCount, os.Stderr)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("file snapshot store: %s", err) // nolint:goerr113
@@ -433,10 +428,6 @@ func (s *RaftStore) writeClusterConfigEntries(cluster RaftCluster) error {
 }
 
 func (s *RaftStore) writeConfigEntries() error {
-	if s.Arg.InMem {
-		return nil
-	}
-
 	servers := s.raft.GetConfiguration().Configuration().Servers
 	entries := make([]ConfigEntry, len(servers))
 
@@ -452,10 +443,10 @@ func (s *RaftStore) writeConfigEntries() error {
 }
 
 func (s *RaftStore) writePeersJSON(entries []ConfigEntry) error {
-	_ = os.MkdirAll(s.Arg.RaftNodeDir, 0644)
+	_ = os.MkdirAll(s.Arg.RaftNodeDir, 0o644)
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
 
-	return ioutil.WriteFile(peerFile, JsonifyBytes(entries), 0600)
+	return ioutil.WriteFile(peerFile, JsonifyBytes(entries), 0o600)
 }
 
 // ReadPeersJSON consumes a legacy peers.json file in the format of the old JSON
@@ -648,10 +639,6 @@ func (s *RaftStore) Apply(l *raft.Log) interface{} {
 }
 
 func (s *RaftStore) processSetRaftCluster(c Command) {
-	if s.Arg.InMem {
-		return
-	}
-
 	v := RaftCluster{}
 	if err := jsoniter.Unmarshal([]byte(c.Value), &v); err != nil {
 		s.Infof("jsoniter.Unmarshal error %+v", err)
