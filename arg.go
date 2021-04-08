@@ -20,6 +20,7 @@ import (
 type Arg struct {
 	Bootstrap bool
 
+	InMem       bool
 	RaftAddr    string
 	RaftAdv     string
 	RaftNodeDir string
@@ -94,6 +95,7 @@ func DefineFlags(p FlagProvider, flagOptionFns ...FlagOptionFn) *Arg {
 	f := createFlagNames(flagOptionFns)
 	a := MakeArg()
 
+	boolVar(p, &a.InMem, true, f.Rmem, "Use in-memory storage for Raft.")
 	strVar(p, &a.HTTPAddr, f.Haddr, "HTTP server bind address")
 	strVar(p, &a.HTTPAdv, f.Hadv, "Advertised HTTP address. If not set, same as HTTP server")
 	strVar(p, &a.RaftAddr, f.Raddr, "Raft communication bind address. If not set, same as haddr(port+1000)")
@@ -103,6 +105,12 @@ func DefineFlags(p FlagProvider, flagOptionFns ...FlagOptionFn) *Arg {
 	strVar(p, &a.IfaceName, f.Iface, "iface name to bind")
 
 	return a
+}
+
+func boolVar(p FlagProvider, ptr *bool, defaultValue bool, name, usage string) {
+	if name != "" {
+		p.BoolVar(ptr, name, defaultValue, usage)
+	}
 }
 
 func strVar(p FlagProvider, ptr *string, name, usage string) {
@@ -118,6 +126,7 @@ func CreateArg(p ViperProvider, flagOptionFns ...FlagOptionFn) *Arg {
 
 	p.SetDefault(f.Rmem, true)
 
+	a.InMem = p.GetBool(f.Rmem)
 	a.HTTPAddr = p.GetString(f.Haddr)
 	a.HTTPAdv = p.GetString(f.Hadv)
 	a.RaftAddr = p.GetString(f.Raddr)

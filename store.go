@@ -195,6 +195,9 @@ func (s *RaftStore) Open() error {
 
 	// Setup Raft configuration.
 	config := raft.DefaultConfig()
+	config.SnapshotInterval = 30 * time.Second
+	config.SnapshotThreshold = 0
+	config.TrailingLogs = 0
 	config.LocalID = raft.ServerID(s.Arg.NodeID)
 
 	_ = os.MkdirAll(s.Arg.RaftNodeDir, os.ModePerm)
@@ -289,6 +292,10 @@ func (s *RaftStore) createTransport() (*raft.NetworkTransport, error) {
 
 // createStores creates the log store and stable store.
 func (s *RaftStore) createStores() (raft.LogStore, raft.StableStore, raft.SnapshotStore, error) {
+	if s.Arg.InMem {
+		return raft.NewInmemStore(), raft.NewInmemStore(), raft.NewInmemSnapshotStore(), nil
+	}
+
 	db, err := raftboltdb.NewBoltStore(filepath.Join(s.Arg.RaftNodeDir, "raft.db"))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("new bolt store: %s", err) // nolint:goerr113

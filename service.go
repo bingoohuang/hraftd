@@ -112,7 +112,7 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleRaftRequest(w, r)
 	case strings.HasPrefix(path, DoJobPath):
 		CheckMethodE("POST", s.handleJobRequest, w, r)
-	case strings.HasPrefix(path, "/debug/pprof"):
+	case strings.HasPrefix(path, "/debug"):
 		_ = debugPprof(w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
@@ -123,27 +123,28 @@ func debugPprof(w http.ResponseWriter, req *http.Request) error {
 	switch req.URL.Path {
 	case "/debug/pprof":
 		pprof.Index(w, req)
-	case "/debug/pprof/cmdline":
+	case "/debug/cmdline":
 		pprof.Cmdline(w, req)
-	case "/debug/pprof/symbol":
+	case "/debug/symbol":
 		pprof.Symbol(w, req)
-	case "/debug/pprof/profile":
+	case "/debug/profile":
 		pprof.Profile(w, req)
-	case "/debug/pprof/trace":
+	case "/debug/trace":
 		pprof.Trace(w, req)
-	case "/debug/pprof/heap":
+	case "/debug/heap":
 		pprof.Handler("heap").ServeHTTP(w, req)
-	case "/debug/pprof/goroutine":
+	case "/debug/goroutine":
 		pprof.Handler("goroutine").ServeHTTP(w, req)
-	case "/debug/pprof/allocs":
+	case "/debug/allocs":
 		pprof.Handler("allocs").ServeHTTP(w, req)
-	case "/debug/pprof/block":
+	case "/debug/block":
 		pprof.Handler("block").ServeHTTP(w, req)
-	case "/debug/pprof/threadcreate":
+	case "/debug/threadcreate":
 		pprof.Handler("threadcreate").ServeHTTP(w, req)
-	case "/debug/pprof/mutex":
+	case "/debug/mutex":
 		pprof.Handler("mutex").ServeHTTP(w, req)
 	default:
+		w.WriteHeader(http.StatusNotFound)
 		return fmt.Errorf("404 %s", req.URL.Path)
 	}
 

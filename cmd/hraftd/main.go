@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/averagesecurityguy/random"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/spf13/pflag"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/bingoohuang/faker"
 	"github.com/bingoohuang/golog"
-	"github.com/bingoohuang/gou/ran"
 	"github.com/bingoohuang/hraftd"
 	"github.com/hashicorp/raft"
 	funk "github.com/thoas/go-funk"
@@ -28,7 +29,7 @@ func main() {
 	pflag.Parse()
 	_ = viper.BindPFlags(pflag.CommandLine)
 
-	_, _ = golog.SetupLogrus(nil, "", "")
+	golog.SetupLogrus()
 
 	arg.LoggerMore = hraftd.NewLogrusAdapter(logrus.StandardLogger())
 	arg.Fix()
@@ -68,6 +69,7 @@ func main() {
 
 // RigConfItem defines 配置项.
 type RigConfItem struct {
+	Time   string        `json:"time"`
 	ID     int64         `json:"id"`
 	Name   string        `json:"name" faker:"len=30"`
 	NodeID hraftd.NodeID `json:"node_id"`
@@ -128,13 +130,21 @@ func demoDistributeJobs(logger hraftd.LevelLogger, activePeers []hraftd.Peer) {
 	}
 }
 
+// IntN returns a random int
+func RandIntN(n uint64) int {
+	i, _ := random.Uint64Range(0, n)
+
+	return int(i)
+}
+
 func demoApplyLogs(logger hraftd.LevelLogger, activePeers []hraftd.Peer, h *hraftd.Service) {
 	items := make([]RigConfItem, 0)
 	// demo applying log
 	for _, peer := range activePeers {
-		for i := 1 + ran.IntN(3); i > 0; i-- { // nolint:gomnd
+		for i := 1 + RandIntN(3); i > 0; i-- { // nolint:gomnd
 			item := RigConfItem{}
 			_ = faker.Fake(&item)
+			item.Time = time.Now().Format(`2006-01-02 15:04:05.000`)
 			item.NodeID = peer.ID
 
 			items = append(items, item)
