@@ -2,14 +2,23 @@ package hraftd
 
 import (
 	"bytes"
+	"crypto/tls"
 	"net/http"
 
 	jsoniter "github.com/json-iterator/go"
 )
 
+var client = &http.Client{
+	//Timeout: 10 * time.Second,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		//DisableKeepAlives: true,
+	},
+}
+
 // GetJSON does HTTP GET parse response as JSON.
 func GetJSON(addr string, v interface{}) (string, error) {
-	resp, err := http.Get(addr) // nolint:gosec,noctx
+	resp, err := client.Get(addr) // nolint:gosec,noctx
 	if err != nil {
 		return "", err
 	}
@@ -19,7 +28,7 @@ func GetJSON(addr string, v interface{}) (string, error) {
 
 // PostJSON posts body as JSON and parse response as JSON.
 func PostJSON(addr string, body, v interface{}) (int, string, error) {
-	resp, err := http.Post(addr, ContentTypeJSON, bytes.NewReader(JsonifyBytes(body))) // nolint:gosec,noctx
+	resp, err := client.Post(addr, ContentTypeJSON, bytes.NewReader(JsonifyBytes(body))) // nolint:gosec,noctx
 	if err != nil {
 		return 0, "", err
 	}

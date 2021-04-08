@@ -202,7 +202,7 @@ func (s *RaftStore) Open() error {
 
 	_ = os.MkdirAll(s.Arg.RaftNodeDir, os.ModePerm)
 	peerFile := filepath.Join(s.Arg.RaftNodeDir, "peers.json")
-	peerFileExits := PathExists(peerFile)
+	peerFileExits := !s.Arg.InMem && PathExists(peerFile)
 
 	s.Infof("RaftNodeDir %s exists %v", s.Arg.RaftNodeDir, peerFileExits)
 
