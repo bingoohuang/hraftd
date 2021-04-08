@@ -133,6 +133,11 @@ func makePeersMap(peers []Peer, dataLen int) map[NodeID]int {
 	return peersNumMap
 }
 
+// CleanSticky cleans the sticky map state.
+func (d *Distributor) CleanSticky() {
+	d.StickyMap = make(map[string]NodeID)
+}
+
 func (d *Distributor) cleanKeysNotIn(peers []Peer) {
 	peersMap := make(map[NodeID]bool)
 
