@@ -1,8 +1,11 @@
 package hraftd
 
 import (
+	"github.com/bingoohuang/goip"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 )
@@ -27,6 +30,8 @@ func (s *Service) handleRaftRequest(w http.ResponseWriter, r *http.Request) {
 		}, w, r)
 	case "/cluster":
 		CheckMethodE("GET", s.handleCluster, w, r)
+	case "/node":
+		CheckMethodE("GET", s.handleNode, w, r)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -71,6 +76,27 @@ func (s *Service) listenLeaderCh() {
 			continue
 		}
 	}
+}
+
+var startupTime = time.Now()
+
+func (s *Service) handleNode(w http.ResponseWriter, _ *http.Request) error {
+	hostname, _ := os.Hostname()
+	mainIP, _ := goip.MainIP()
+
+	WriteAsJSON(struct {
+		StartTime string `json:"startTime"`
+		NodeID    string `json:"nodeID"`
+		Hostname  string `json:"hostname"`
+		IP        string `json:"IP"`
+	}{
+		StartTime: startupTime.Format(`2006-01-02 15:04:05.000`),
+		NodeID:    string(s.NodeID),
+		Hostname:  hostname,
+		IP:        mainIP,
+	}, w)
+
+	return nil
 }
 
 func (s *Service) handleCluster(w http.ResponseWriter, _ *http.Request) error {

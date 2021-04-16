@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/averagesecurityguy/random v0.0.0-20180326012618-37cce341d2af
 	github.com/bingoohuang/faker v0.0.0-20191122080657-247fa98a3272
+	github.com/bingoohuang/goip v0.0.0-20210416020253-6805cdefc595 // indirect
 	github.com/bingoohuang/golog v0.0.0-20210324153231-3b0996a1989b
 	github.com/bingoohuang/gonet v0.0.0-20200214022352-30b4d1d682e9
 	github.com/creasty/defaults v1.3.0

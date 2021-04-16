@@ -3,6 +3,7 @@ package hraftd
 import (
 	"errors"
 	"fmt"
+	"github.com/bingoohuang/goip"
 	"log"
 	"net"
 	"os/user"
@@ -165,7 +166,7 @@ func (a *Arg) Fix() {
 		a.LoggerMore = DefaultLogger
 	}
 
-	a.HostIP = InferHostIPv4(a.IfaceName)
+	a.HostIP, _ = goip.MainIP(a.IfaceName)
 
 	a.fixAddr()
 	a.parseFlagRaftNodeID()

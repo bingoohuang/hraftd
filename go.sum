@@ -15,6 +15,8 @@ github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+Ce
 github.com/bingoohuang/faker v0.0.0-20191122080657-247fa98a3272 h1:p6XGOu/+B2OTxfvUrEMfwwMVSKtblKV86gbTsVqs/Qo=
 github.com/bingoohuang/faker v0.0.0-20191122080657-247fa98a3272/go.mod h1:aafm3JdahinaC7Ell7InYRUNCLGqIQbaBO+HIHaU4f8=
 github.com/bingoohuang/ginx v0.0.0-20200729033750-047869f5e81c/go.mod h1:fv5fKhsGUfPInVsslF5FJv2oNlZn153C5OogaaUFvFc=
+github.com/bingoohuang/goip v0.0.0-20210416020253-6805cdefc595 h1:PivefcHB4V9ytn3CmBZGsbkwEFSMqIwxYU/Hhx+ekjg=
+github.com/bingoohuang/goip v0.0.0-20210416020253-6805cdefc595/go.mod h1:nivVQSqLu20dauc/b/IlTcOi7EL07JuSy6RYinVtPuU=
 github.com/bingoohuang/golog v0.0.0-20210324153231-3b0996a1989b h1:RT7pC0chPaixuqr0fMfQsQVPR2Rixkk7b/I9jWnrKz8=
 github.com/bingoohuang/golog v0.0.0-20210324153231-3b0996a1989b/go.mod h1:NMB5RiZQOln+BwIoHZIaA1XYmdrE4lvTfwTrT7Vx8Hs=
 github.com/bingoohuang/gonet v0.0.0-20200214022352-30b4d1d682e9 h1:SjtcgQochNjdVIRMH8Car7Uje6QaQknV+NPR8Psad6c=
