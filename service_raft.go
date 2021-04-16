@@ -80,16 +80,19 @@ func (s *Service) listenLeaderCh() {
 
 var startupTime = time.Now()
 
+// NodeState is raft cluster node state.
+type NodeState struct {
+	StartTime string `json:"startTime"`
+	NodeID    string `json:"nodeID"`
+	Hostname  string `json:"hostname"`
+	IP        string `json:"IP"`
+}
+
 func (s *Service) handleNode(w http.ResponseWriter, _ *http.Request) error {
 	hostname, _ := os.Hostname()
 	mainIP, _ := goip.MainIP()
 
-	WriteAsJSON(struct {
-		StartTime string `json:"startTime"`
-		NodeID    string `json:"nodeID"`
-		Hostname  string `json:"hostname"`
-		IP        string `json:"IP"`
-	}{
+	WriteAsJSON(NodeState{
 		StartTime: startupTime.Format(`2006-01-02 15:04:05.000`),
 		NodeID:    string(s.NodeID),
 		Hostname:  hostname,
